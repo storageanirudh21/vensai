@@ -27,46 +27,52 @@ export function BookVisitModal() {
 
   return (
     <Dialog open={visitOpen} onOpenChange={setVisitOpen}>
-      <DialogContent className="sm:max-w-md">
-        <DialogTitle className="font-display text-2xl font-semibold">Book a site visit</DialogTitle>
-        <p className="text-sm text-muted-foreground mt-1 mb-6">
-          Experience our surfaces in person. Schedule a visit to a nearby showroom.
-        </p>
-        
+      <DialogContent className="w-full max-w-md gap-0 overflow-hidden rounded-3xl border border-[#E5E2DA] p-0 shadow-2xl bg-[#F5F3EE]">
+        <div className="bg-[#121212] px-6 py-5 text-white relative">
+          <DialogTitle className="font-display text-2xl font-bold uppercase tracking-wider text-white">
+            Book a Site Visit
+          </DialogTitle>
+          <p className="mt-1 text-xs text-white/70">
+            Experience our architectural surfaces in person at a nearby showroom.
+          </p>
+        </div>
+
         <form
+          className="grid gap-4 px-6 py-6"
           onSubmit={(e) => {
             e.preventDefault();
             setSending(true);
             setTimeout(() => {
               setSending(false);
               setVisitOpen(false);
-              toast.success("Visit requested! We will confirm your time slot shortly.");
-            }, 1000);
+              toast.success("Visit requested!", {
+                description: "We will confirm your showroom time slot shortly.",
+              });
+            }, 700);
           }}
-          className="space-y-4"
         >
           {visitProduct && (
-            <div className="space-y-2">
-              <Label>Interested In</Label>
-              <Input value={visitProduct} disabled className="bg-muted text-muted-foreground" />
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold text-[#121212]">Interested Product</Label>
+              <Input value={visitProduct} disabled className="rounded-xl border-[#D8D4C9] bg-white/70 text-[#121212]" />
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="visit-name">Full Name *</Label>
-              <Input id="visit-name" required placeholder="John Doe" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="visit-name" className="text-xs font-semibold text-[#121212]">Full Name *</Label>
+              <Input id="visit-name" required placeholder="Enter full name" className="rounded-xl border-[#D8D4C9] bg-white" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="visit-phone">Phone Number *</Label>
-              <Input id="visit-phone" required type="tel" placeholder="+91 98765 43210" />
+            <div className="grid gap-1.5">
+              <Label htmlFor="visit-phone" className="text-xs font-semibold text-[#121212]">Phone Number *</Label>
+              <Input id="visit-phone" required type="tel" placeholder="+91 98765 43210" className="rounded-xl border-[#D8D4C9] bg-white" />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="visit-showroom">Nearby Showroom *</Label>
+          <div className="grid gap-1.5">
+            <Label htmlFor="visit-showroom" className="text-xs font-semibold text-[#121212]">Nearby Showroom *</Label>
             <Select required>
-              <SelectTrigger id="visit-showroom">
+              <SelectTrigger id="visit-showroom" className="rounded-xl border-[#D8D4C9] bg-white">
                 <SelectValue placeholder="Select a showroom" />
               </SelectTrigger>
               <SelectContent>
@@ -79,10 +85,10 @@ export function BookVisitModal() {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="visit-time">Preferred Time Slot *</Label>
+          <div className="grid gap-1.5">
+            <Label htmlFor="visit-time" className="text-xs font-semibold text-[#121212]">Preferred Time Slot *</Label>
             <Select required>
-              <SelectTrigger id="visit-time">
+              <SelectTrigger id="visit-time" className="rounded-xl border-[#D8D4C9] bg-white">
                 <SelectValue placeholder="Select a time slot" />
               </SelectTrigger>
               <SelectContent>
@@ -95,9 +101,25 @@ export function BookVisitModal() {
             </Select>
           </div>
 
-          <Button type="submit" className="w-full mt-4" disabled={sending}>
-            {sending ? "Sending Request..." : "Request Visit"}
-          </Button>
+          <div className="mt-3 flex items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="w-1/3 rounded-full border-[#D8D4C9] text-[#121212] hover:bg-white cursor-pointer"
+              onClick={() => setVisitOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="lg"
+              disabled={sending}
+              className="w-2/3 rounded-full bg-[#121212] text-white hover:bg-black cursor-pointer"
+            >
+              {sending ? "Sending..." : "Request Visit"}
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

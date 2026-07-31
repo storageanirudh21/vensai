@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import hero from "@/assets/hero-interior.jpg";
 import hero2 from "@/assets/hero-2.jpg";
 import hero3 from "@/assets/hero-3.jpg";
-import { products } from "@/lib/products";
+import { collections, products } from "@/lib/products";
 import { useLead } from "@/lib/lead";
 
 export const Route = createFileRoute("/")({
@@ -154,7 +154,11 @@ function Hero() {
 
 function ProductCard({ product, index }: { product: (typeof products)[number]; index: number }) {
   return (
-    <Link to="/products/$slug" params={{ slug: product.slug }} className="group block">
+    <Link
+      to="/products"
+      search={{ collection: product.collection as (typeof collections)[number] }}
+      className="group block"
+    >
       <div className="relative aspect-[4/5] overflow-hidden bg-[#ddd1c0]">
         <img
           src={product.image}
@@ -201,16 +205,27 @@ function Products() {
             <ProductCard key={product.slug} product={product} index={index} />
           ))}
         </div>
-        <div className="mt-9 flex justify-between border-b border-[#d5cdc1] pb-5">
+        <div className="mt-9 flex items-center justify-between border-b border-[#d5cdc1] pb-5">
           <Link
             to="/products"
             className="rounded-full bg-[#211c17] px-6 py-3 text-[0.65rem] font-medium uppercase tracking-[0.12em] text-white hover:bg-[#5b4937]"
           >
             View all collections
           </Link>
-          <span className="hidden text-xs text-[#756d62] md:block">
-            Panels · Surfaces · Marble · Artifacts
-          </span>
+          <div className="hidden text-xs text-[#756d62] md:flex items-center gap-2">
+            {(["Panels", "Surfaces", "Marble", "Artifacts"] as const).map((c, i) => (
+              <span key={c} className="flex items-center gap-2">
+                {i > 0 && <span>·</span>}
+                <Link
+                  to="/products"
+                  search={{ collection: c }}
+                  className="hover:text-[#211c17] hover:underline transition-colors"
+                >
+                  {c}
+                </Link>
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </section>
