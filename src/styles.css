@@ -154,8 +154,8 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
-    background-image: linear-gradient(to right, rgb(41 35 27 / 0.035) 1px, transparent 1px);
-    background-size: min(100%, 90rem) 100%;
+    background-image: radial-gradient(circle at 88% 8%, rgb(197 150 90 / 0.1), transparent 24rem), linear-gradient(to right, rgb(41 35 27 / 0.025) 1px, transparent 1px);
+    background-size: auto, min(100%, 90rem) 100%;
   }
 
   h1,
@@ -165,6 +165,12 @@
     font-family: var(--font-display);
     font-weight: 400;
     letter-spacing: -0.045em;
+  }
+}
+
+@layer components {
+  .admin-content {
+    background-image: radial-gradient(circle at 94% 0%, rgb(220 190 145 / 0.14), transparent 25rem);
   }
 }
 

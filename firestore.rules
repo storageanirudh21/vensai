@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is logged in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Admins Collection: Any signed in user can read and manage profiles.
+    match /admins/{uid} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Categories Collection
+    match /categories/{catId} {
+      allow read: if true; // Public catalog read
+      allow write: if isSignedIn();
+    }
+
+    // Series Collection
+    match /series/{seriesId} {
+      allow read: if true; // Public catalog read
+      allow write: if isSignedIn();
+    }
+
+    // Products Collection
+    match /products/{prodId} {
+      allow read: if true; // Public catalog read
+      allow write: if isSignedIn();
+    }
+
+    // Brochures Collection
+    match /brochures/{brochureId} {
+      allow read: if true; // Public catalog read
+      allow write: if isSignedIn();
+    }
+
+    // Enquiries Collection
+    match /enquiries/{enquiryId} {
+      allow create: if true; // Public submission
+      allow read, update, delete: if isSignedIn();
+    }
+
+    // Site Visits Collection
+    match /siteVisits/{visitId} {
+      allow create: if true; // Public submission
+      allow read, update, delete: if isSignedIn();
+    }
+    
+    // Settings Collection
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+  }
+}

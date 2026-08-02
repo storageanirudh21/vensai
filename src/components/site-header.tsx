@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import { MessageSquareText, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { VensaiMark } from "@/components/vensai-mark";
+import { NavbarLogo } from "@/components/navbar-logo";
 import { useLead } from "@/lib/lead";
 import { cn } from "@/lib/utils";
 
@@ -64,12 +64,7 @@ export function SiteHeader() {
 
         {/* Center: Brand Logo (Dead Centered) */}
         <div className="flex justify-center">
-          <Link to="/" className="flex items-center gap-2.5 group text-center">
-            <VensaiMark className={cn("h-6 w-6 transition-transform group-hover:rotate-12 shrink-0", overHero ? "text-white" : "text-[#755c3b]")} />
-            <span className={cn("font-display text-[1.65rem] font-semibold tracking-[0.18em] uppercase whitespace-nowrap", overHero ? "text-white" : "text-[#24221e]")}>
-              VENSAI <span className={cn("font-sans font-medium text-[0.55rem] tracking-[0.32em]", overHero ? "text-white/65" : "text-[#755c3b]")}>PRIME</span>
-            </span>
-          </Link>
+          <NavbarLogo overHero={overHero} />
         </div>
 
         {/* Right Side: Quick Query & Consultation */}

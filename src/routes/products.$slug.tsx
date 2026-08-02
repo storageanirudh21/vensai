@@ -1,34 +1,34 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { useState } from "react";
-import { ArrowLeft, Check, Minus, Plus, ZoomIn, ZoomOut } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Check, Minus, Plus, ZoomIn, ZoomOut, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ProductCard } from "@/components/product-card";
 import { Reveal } from "@/components/reveal";
-import { getProduct, products } from "@/lib/products";
+import { getProduct as getLocalProduct, products as localProducts } from "@/lib/products";
+import { getProductBySlug } from "@/services/productService";
 import { useLead } from "@/lib/lead";
 import { cn } from "@/lib/utils";
+import { Product } from "@/types/catalogue";
+import { Skeleton } from "@/components/ui/skeleton";
 import hero2 from "@/assets/hero-2.jpg";
 import hero3 from "@/assets/hero-3.jpg";
 
 export const Route = createFileRoute("/products/$slug")({
   loader: ({ params }) => {
-    const product = getProduct(params.slug);
-    if (!product) throw notFound();
-    return { slug: product.slug, name: product.name, blurb: product.blurb };
+    // Keep TanStack route metadata happy by returning slug
+    return { slug: params.slug };
   },
   head: ({ loaderData }) => {
     if (!loaderData) {
       return { meta: [{ title: "Product not found — Vensai" }, { name: "robots", content: "noindex" }] };
     }
-    const title = `${loaderData.name} — Vensai Prime Interiors`;
+    const title = `${loaderData.slug.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} — Vensai Prime Interiors`;
     return {
       meta: [
         { title },
-        { name: "description", content: loaderData.blurb },
-        { property: "og:title", content: title },
-        { property: "og:description", content: loaderData.blurb },
+        { name: "description", content: "Tactile architectural surfaces and considered design details." },
       ],
     };
   },
@@ -46,14 +46,111 @@ export const Route = createFileRoute("/products/$slug")({
 
 function ProductDetail() {
   const { slug } = Route.useParams();
-  const product = getProduct(slug)!;
   const { openQuery, openVisit } = useLead();
-  const [finish, setFinish] = useState(product.finishes[0]);
+
+  const [loading, setLoading] = useState(true);
+  const [product, setProduct] = useState<any>(null);
+  const [finish, setFinish] = useState("");
   const [qty, setQty] = useState(20);
   const [activeImage, setActiveImage] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(1);
 
-  const related = products.filter((p) => p.slug !== product.slug).slice(0, 3);
+  useEffect(() => {
+    async function fetchProduct() {
+      try {
+        setLoading(true);
+        // 1. Check Firestore
+        const dbProd = await getProductBySlug(slug);
+        if (dbProd) {
+          const mapped = {
+            slug: dbProd.slug,
+            name: dbProd.name,
+            collection: dbProd.categoryName,
+            description: dbProd.description,
+            specs: dbProd.specifications?.map(s => ({ label: s.label, value: `${s.value} ${s.unit}`.trim() })) || [],
+            finishes: dbProd.finishes?.map(f => f.name) || [],
+            image: dbProd.primaryImage?.url || "",
+            images: dbProd.images && dbProd.images.length > 0
+              ? dbProd.images.map(img => img.url)
+              : [dbProd.primaryImage?.url || ""],
+            unit: "sq.ft",
+            brochure: dbProd.brochure,
+            badge: dbProd.featured ? "Bestseller" : undefined,
+          };
+          setProduct(mapped);
+          if (mapped.finishes.length > 0) {
+            setFinish(mapped.finishes[0]);
+          }
+          setLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.warn("Failed to retrieve product from Firestore, trying fallback:", error);
+      }
+
+      // 2. Fallback to local static data
+      const local = getLocalProduct(slug);
+      if (local) {
+        const mapped = {
+          slug: local.slug,
+          name: local.name,
+          collection: local.collection,
+          description: local.description,
+          specs: local.specs,
+          finishes: local.finishes,
+          image: local.image,
+          images: [local.image, hero2, hero3],
+          unit: local.unit,
+          brochure: null,
+          badge: local.badge,
+        };
+        setProduct(mapped);
+        if (mapped.finishes.length > 0) {
+          setFinish(mapped.finishes[0]);
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchProduct();
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-7xl px-5 py-24 md:px-8">
+        <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
+          <div className="lg:col-span-7 space-y-4">
+            <Skeleton className="aspect-square w-full rounded-2xl bg-neutral-100" />
+            <div className="flex gap-4">
+              <Skeleton className="h-20 w-20 rounded-xl bg-neutral-100" />
+              <Skeleton className="h-20 w-20 rounded-xl bg-neutral-100" />
+            </div>
+          </div>
+          <div className="lg:col-span-5 space-y-6">
+            <Skeleton className="h-6 w-24 bg-neutral-100" />
+            <Skeleton className="h-12 w-4/5 bg-neutral-100" />
+            <Skeleton className="h-24 w-full bg-neutral-100" />
+            <Separator />
+            <Skeleton className="h-10 w-full bg-neutral-100" />
+            <Skeleton className="h-14 w-full bg-neutral-100" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="mx-auto max-w-md px-5 py-32 text-center">
+        <h1 className="font-display text-4xl">Product not found</h1>
+        <Button asChild variant="outline" className="mt-6 rounded-sm">
+          <Link to="/products">Back to catalogue</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const related = localProducts.filter((p) => p.slug !== product.slug).slice(0, 3);
 
   return (
     <div className="mx-auto max-w-7xl px-5 py-10 md:px-8 md:py-16">
@@ -72,7 +169,7 @@ function ProductDetail() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1, scale: zoomLevel }}
               transition={{ duration: 0.3 }}
-              src={[product.image, hero2, hero3][activeImage]}
+              src={product.images[activeImage] || product.image}
               alt={`${product.name} detail view`}
               className="h-full w-full object-cover origin-center cursor-move"
               drag={zoomLevel > 1}
@@ -98,7 +195,7 @@ function ProductDetail() {
           </div>
 
           <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-            {[product.image, hero2, hero3].map((img, idx) => (
+            {product.images.map((img: string, idx: number) => (
               <button
                 key={idx}
                 onClick={() => {
@@ -121,28 +218,30 @@ function ProductDetail() {
           <h1 className="mt-3 font-display text-5xl leading-none md:text-6xl">{product.name}</h1>
           <p className="mt-5 leading-relaxed text-muted-foreground">{product.description}</p>
 
-
-
           <Separator className="my-8" />
 
-          <p className="eyebrow">Finish · {finish}</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {product.finishes.map((f) => (
-              <button
-                key={f}
-                onClick={() => setFinish(f)}
-                className={cn(
-                  "flex items-center gap-2 rounded-full border px-4 py-2 text-xs transition-colors",
-                  f === finish
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border text-muted-foreground hover:border-foreground hover:text-foreground",
-                )}
-              >
-                {f === finish && <Check className="h-3 w-3" />}
-                {f}
-              </button>
-            ))}
-          </div>
+          {product.finishes.length > 0 && (
+            <>
+              <p className="eyebrow">Finish · {finish}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {product.finishes.map((f: string) => (
+                  <button
+                    key={f}
+                    onClick={() => setFinish(f)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-full border px-4 py-2 text-xs transition-colors",
+                      f === finish
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border text-muted-foreground hover:border-foreground hover:text-foreground",
+                    )}
+                  >
+                    {f === finish && <Check className="h-3 w-3" />}
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <div className="flex items-center rounded-sm border">
@@ -177,14 +276,34 @@ function ProductDetail() {
             </Button>
           </div>
 
-          <dl className="mt-12 divide-y border-t">
-            {product.specs.map((s) => (
-              <div key={s.label} className="grid grid-cols-2 gap-4 py-4 text-sm">
-                <dt className="text-muted-foreground">{s.label}</dt>
-                <dd className="text-right">{s.value}</dd>
+          {/* Brochure Display Section */}
+          {product.brochure && (
+            <div className="mt-8 rounded-lg border border-[#E5E2DC] bg-[#FAF8F5]/50 p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FileText className="h-8 w-8 text-[#8B7D6B] shrink-0" />
+                <div>
+                  <span className="text-xs font-semibold block text-neutral-800 truncate max-w-[180px]">{product.brochure.title}</span>
+                  <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider block">Official Catalogue PDF</span>
+                </div>
               </div>
-            ))}
-          </dl>
+              <Button size="sm" variant="outline" asChild className="rounded-sm text-xs font-mono border-[#E5E2DC] bg-white">
+                <a href={product.brochure.fileUrl} target="_blank" rel="noopener noreferrer">
+                  Download
+                </a>
+              </Button>
+            </div>
+          )}
+
+          {product.specs && product.specs.length > 0 && (
+            <dl className="mt-12 divide-y border-t">
+              {product.specs.map((s: any) => (
+                <div key={s.label} className="grid grid-cols-2 gap-4 py-4 text-sm">
+                  <dt className="text-muted-foreground">{s.label}</dt>
+                  <dd className="text-right">{s.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
         </div>
       </div>
 

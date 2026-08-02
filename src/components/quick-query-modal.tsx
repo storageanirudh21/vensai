@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLead } from "@/lib/lead";
+import { createEnquiry } from "@/services/enquiryService";
 
 const indianStates = [
   "Andhra Pradesh",
@@ -46,6 +47,50 @@ const indianStates = [
 export function QuickQueryModal() {
   const { open, setOpen, product } = useLead();
   const [sending, setSending] = useState(false);
+  const [selectedState, setSelectedState] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSending(true);
+
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get("name") as string;
+    const email = formData.get("email") as string;
+    const mobile = formData.get("mobile") as string;
+    const city = formData.get("city") as string;
+    const productLabel = formData.get("product") as string;
+
+    try {
+      await createEnquiry({
+        productId: "quick_query",
+        productName: productLabel,
+        categoryId: "general",
+        categoryName: "Quick General Inquiry",
+        seriesId: "general",
+        seriesName: "General",
+        selectedFinish: "Default",
+        quantity: 1,
+        quantityUnit: "project",
+        customer: {
+          name,
+          phone: mobile,
+          email
+        },
+        message: `Inquiry from ${city}, ${selectedState}. Details: Interested in ${productLabel}`
+      });
+
+      toast.success("Enquiry received", {
+        description: "Our specifier will call you back within one business day.",
+      });
+      setOpen(false);
+      e.currentTarget.reset();
+      setSelectedState("");
+    } catch (error) {
+      toast.error("Failed to submit enquiry. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -59,21 +104,7 @@ export function QuickQueryModal() {
           </p>
         </div>
 
-        <form
-          className="grid gap-4 px-6 py-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSending(true);
-            setTimeout(() => {
-              setSending(false);
-              setOpen(false);
-              (e.target as HTMLFormElement).reset();
-              toast.success("Enquiry received", {
-                description: "Our team will call you back within one business day.",
-              });
-            }, 700);
-          }}
-        >
+        <form className="grid gap-4 px-6 py-6" onSubmit={handleSubmit}>
           <div className="grid gap-1.5">
             <Label htmlFor="qq-name" className="text-xs font-semibold text-[#121212]">Full name</Label>
             <Input id="qq-name" name="name" required className="rounded-xl border-[#D8D4C9] bg-white" placeholder="Enter your full name" />
@@ -103,11 +134,11 @@ export function QuickQueryModal() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label htmlFor="qq-state" className="text-xs font-semibold text-[#121212]">State</Label>
-              <Select name="state" required>
+              <Select onValueChange={setSelectedState} value={selectedState} required>
                 <SelectTrigger id="qq-state" className="rounded-xl border-[#D8D4C9] bg-white">
                   <SelectValue placeholder="Select your state" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white border-[#E5E2DC] rounded-xl text-xs font-sans">
                   {indianStates.map((s) => (
                     <SelectItem key={s} value={s}>
                       {s}
@@ -118,7 +149,7 @@ export function QuickQueryModal() {
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="qq-city" className="text-xs font-semibold text-[#121212]">City</Label>
-              <Input id="qq-city" name="city" className="rounded-xl border-[#D8D4C9] bg-white" placeholder="Enter your city" />
+              <Input id="qq-city" name="city" required className="rounded-xl border-[#D8D4C9] bg-white" placeholder="Enter your city" />
             </div>
           </div>
           <div className="grid gap-1.5">
