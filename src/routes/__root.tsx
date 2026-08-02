@@ -8,7 +8,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -131,6 +131,19 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAdmin = pathname.startsWith("/admin");
+
+  // On hard refresh the SPA shell hydrates before the matched route's chunk/loader
+  // resolves; rendering chrome immediately shows header+footer around an empty
+  // <main> for a beat (the footer "flash"). Wait for the first load to settle.
+  const isInitialLoadPending = useRouterState({ select: (s) => s.status === "pending" });
+  const [hasSettledOnce, setHasSettledOnce] = useState(!isInitialLoadPending);
+  useEffect(() => {
+    if (!isInitialLoadPending) setHasSettledOnce(true);
+  }, [isInitialLoadPending]);
+
+  if (!hasSettledOnce) {
+    return <div className="min-h-screen bg-[#FAF9F5]" />;
+  }
 
   if (isAdmin) {
     return (
