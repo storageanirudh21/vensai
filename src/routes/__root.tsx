@@ -128,8 +128,8 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const state = useRouterState();
-  const isAdmin = state.location.pathname.startsWith("/admin");
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isAdmin = pathname.startsWith("/admin");
 
   if (isAdmin) {
     return (

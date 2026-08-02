@@ -12,10 +12,7 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
     spa: {
-      enabled: true,
-      prerender: {
-        outputPath: "index.html"
-      }
+      enabled: true
     }
   },
   nitro: false

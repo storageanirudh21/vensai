@@ -7,8 +7,8 @@ export const Route = createFileRoute("/admin")({
 });
 
 function AdminLayoutRouteComponent() {
-  const state = useRouterState();
-  const isLogin = state.location.pathname === "/admin/login";
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isLogin = pathname === "/admin/login";
 
   // Login page has its own standalone design without sidebar
   if (isLogin) {
