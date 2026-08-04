@@ -6,11 +6,26 @@ import {
   ArrowUpRight,
   ChevronDown,
   Quote,
+  Expand,
+  MapPin,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  ExternalLink,
+  Building2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import hero from "@/assets/hero-interior.jpg";
 import hero2 from "@/assets/hero-2.jpg";
 import hero3 from "@/assets/hero-3.jpg";
+import clientVilla from "@/assets/client-villa-hyderabad.png";
+import clientHotel from "@/assets/client-hotel-bengaluru.png";
+import clientOffice from "@/assets/client-office-chennai.png";
+import clientPenthouse from "@/assets/client-penthouse-mumbai.png";
+import luxuryWallCladding from "@/assets/luxury-wall-cladding.png";
+import importedMarble from "@/assets/imported-marble.png";
+import decorativeArtifacts from "@/assets/decorative-artifacts.png";
 import { collections, products } from "@/lib/products";
 import { useLead } from "@/lib/lead";
 
@@ -442,6 +457,402 @@ function FAQs() {
   );
 }
 
+const galleryItems = [
+  {
+    id: "villa-hyderabad",
+    title: "Private Villa Living Lounge",
+    category: "Residential" as const,
+    location: "Jubilee Hills",
+    city: "Hyderabad",
+    image: clientVilla,
+    productsUsed: [
+      { name: "PolyGranites", slug: "polygranites" },
+      { name: "Imported Marble", slug: "imported-marble" },
+    ],
+    description:
+      "Book-matched PolyGranite sheets paired with warm recessed perimeter cove lighting created a seamless, high-gloss marble feature wall in a 5,000 sq.ft private residence.",
+    year: "2025",
+  },
+  {
+    id: "hotel-bengaluru",
+    title: "Boutique Hotel Grand Reception",
+    category: "Hospitality" as const,
+    location: "Indiranagar",
+    city: "Bengaluru",
+    image: clientHotel,
+    productsUsed: [
+      { name: "WPC Louvers", slug: "wpc-panels" },
+      { name: "PVC Fluted Panels", slug: "pvc-fluted-panels" },
+    ],
+    description:
+      "Full-height vertical WPC timber louvers and custom champagne fluted panels installed behind the reception counter to give guests a tactile, welcoming aesthetic.",
+    year: "2025",
+  },
+  {
+    id: "office-chennai",
+    title: "Corporate Executive Boardroom",
+    category: "Corporate" as const,
+    location: "OMR IT Corridor",
+    city: "Chennai",
+    image: clientOffice,
+    productsUsed: [
+      { name: "Timber Baffles", slug: "baffles" },
+      { name: "Charcoal Panels", slug: "charcoal-panels" },
+    ],
+    description:
+      "Suspended acoustic timber baffle system combined with deep matte chevron Charcoal accent wall panels for superior acoustic damping and sleek corporate styling.",
+    year: "2024",
+  },
+  {
+    id: "penthouse-mumbai",
+    title: "Master Suite Headboard Wall",
+    category: "Residential" as const,
+    location: "Worli",
+    city: "Mumbai",
+    image: clientPenthouse,
+    productsUsed: [
+      { name: "PVC Fluted Panels", slug: "pvc-fluted-panels" },
+      { name: "Acrylic Laminates", slug: "acrylic" },
+    ],
+    description:
+      "Fine pitch vertical PVC fluted panels with brass metallic strip accents forming a dramatic full-wall bed headboard for a luxury penthouse suite.",
+    year: "2025",
+  },
+  {
+    id: "dining-hyderabad",
+    title: "Luxury Residence & Courtyard",
+    category: "Commercial" as const,
+    location: "Banjara Hills",
+    city: "Hyderabad",
+    image: hero,
+    productsUsed: [
+      { name: "Luxury Wall Cladding", slug: "luxury-wall-cladding" },
+      { name: "Exterior Soffits", slug: "soffits" },
+    ],
+    description:
+      "Weather-resistant exterior soffit louvers and interior brass-inlaid luxury wall cladding creating a seamless indoor-outdoor architectural transition.",
+    year: "2024",
+  },
+  {
+    id: "lobby-gachibowli",
+    title: "Luxury Executive Entrance Lobby",
+    category: "Corporate" as const,
+    location: "Financial District",
+    city: "Hyderabad",
+    image: luxuryWallCladding,
+    productsUsed: [
+      { name: "Luxury Wall Cladding", slug: "luxury-wall-cladding" },
+      { name: "Imported Sculptures", slug: "imported-sculptures" },
+    ],
+    description:
+      "Multi-textured acoustic louvers with precision brushed brass inlays installed across a double-height commercial tower entrance lobby.",
+    year: "2025",
+  },
+  {
+    id: "foyer-kavuri",
+    title: "Bespoke Residence Foyer",
+    category: "Residential" as const,
+    location: "Kavuri Hills",
+    city: "Hyderabad",
+    image: importedMarble,
+    productsUsed: [
+      { name: "Imported Marble", slug: "imported-marble" },
+      { name: "Decorative Artifacts", slug: "decorative-artifacts" },
+    ],
+    description:
+      "Calacatta Italian natural marble slab flooring complemented by handcrafted bronze and ceramic sculptural centerpieces.",
+    year: "2025",
+  },
+  {
+    id: "studio-sadashivnagar",
+    title: "Architecture Studio Niche",
+    category: "Commercial" as const,
+    location: "Sadashivnagar",
+    city: "Bengaluru",
+    image: decorativeArtifacts,
+    productsUsed: [
+      { name: "Decorative Artifacts", slug: "decorative-artifacts" },
+      { name: "Mosaic Tiles", slug: "mosaic-tiles" },
+    ],
+    description:
+      "Custom geometric mosaic wall backing with hand-sculpted artisan bronze centerpieces in an exclusive interior architecture studio.",
+    year: "2024",
+  },
+];
+
+type GalleryCategory = "All" | "Residential" | "Hospitality" | "Corporate" | "Commercial";
+
+function ClientGallery() {
+  const { openQuery } = useLead();
+  const [selectedCategory, setSelectedCategory] = useState<GalleryCategory>("All");
+  const [activeItemIndex, setActiveItemIndex] = useState<number | null>(null);
+
+  const filteredItems = galleryItems.filter(
+    (item) => selectedCategory === "All" || item.category === selectedCategory
+  );
+
+  const activeItem = activeItemIndex !== null ? filteredItems[activeItemIndex] : null;
+
+  const handleNext = () => {
+    if (activeItemIndex === null) return;
+    setActiveItemIndex((activeItemIndex + 1) % filteredItems.length);
+  };
+
+  const handlePrev = () => {
+    if (activeItemIndex === null) return;
+    setActiveItemIndex((activeItemIndex - 1 + filteredItems.length) % filteredItems.length);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (activeItemIndex === null) return;
+      if (e.key === "Escape") setActiveItemIndex(null);
+      if (e.key === "ArrowRight") handleNext();
+      if (e.key === "ArrowLeft") handlePrev();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeItemIndex, filteredItems.length]);
+
+  return (
+    <section className="bg-[#1c1712] px-6 py-20 text-white md:px-14 md:py-28">
+      <div className="mx-auto max-w-[1260px]">
+        {/* Header */}
+        <div className="flex flex-col gap-6 border-b border-white/20 pb-10 md:flex-row md:items-end md:justify-between">
+          <div>
+            <SectionLabel dark>Client Installations & Locations</SectionLabel>
+            <h2 className="mt-5 text-3xl font-normal tracking-[-0.055em] text-white md:text-5xl">
+              Our materials in live spaces.
+            </h2>
+            <p className="mt-3 max-w-lg text-sm text-white/70">
+              Explore real-world client site installations across luxury villas, boutique hotels, and executive corporate headquarters.
+            </p>
+          </div>
+
+          {/* Filter Categories */}
+          <div className="flex flex-wrap items-center gap-2">
+            {(["All", "Residential", "Hospitality", "Corporate", "Commercial"] as const).map(
+              (cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory(cat);
+                    setActiveItemIndex(null);
+                  }}
+                  className={`rounded-full px-4 py-2 text-[0.65rem] font-medium uppercase tracking-[0.12em] transition-colors ${
+                    selectedCategory === cat
+                      ? "bg-white text-[#1c1712]"
+                      : "border border-white/30 text-white/75 hover:border-white hover:text-white"
+                  }`}
+                >
+                  {cat}
+                </button>
+              )
+            )}
+          </div>
+        </div>
+
+        {/* Gallery Grid */}
+        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredItems.map((item, idx) => (
+            <div
+              key={item.id}
+              onClick={() => setActiveItemIndex(idx)}
+              className="group relative cursor-pointer overflow-hidden rounded-lg bg-[#27211a] border border-white/10 transition-all duration-500 hover:border-white/40 hover:shadow-2xl"
+            >
+              {/* Image Container */}
+              <div className="relative aspect-[4/3] overflow-hidden">
+                <img
+                  src={item.image}
+                  alt={`${item.title} at ${item.location}, ${item.city}`}
+                  className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#14100c] via-[#14100c]/30 to-transparent opacity-80 transition-opacity group-hover:opacity-90" />
+
+                {/* Top Location & Category Badges */}
+                <div className="absolute left-4 top-4 flex flex-wrap items-center gap-2">
+                  <span className="flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-md px-3 py-1 text-[0.6rem] font-mono text-white/90 border border-white/20">
+                    <MapPin size={10} className="text-[#d8c2a3]" />
+                    {item.location}, {item.city}
+                  </span>
+                  <span className="rounded-full bg-white/15 backdrop-blur-md px-2.5 py-1 text-[0.55rem] font-medium uppercase tracking-wider text-white">
+                    {item.category}
+                  </span>
+                </div>
+
+                {/* Hover Expand Icon */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                  <span className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[0.65rem] font-medium uppercase tracking-wider text-[#1c1712] shadow-lg">
+                    <Expand size={13} /> View Project
+                  </span>
+                </div>
+              </div>
+
+              {/* Card Footer Details */}
+              <div className="p-5">
+                <h3 className="text-base font-medium tracking-tight text-white group-hover:text-[#eee4d8] transition-colors">
+                  {item.title}
+                </h3>
+                <p className="mt-1 text-xs text-white/60 line-clamp-2 leading-relaxed">
+                  {item.description}
+                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-3">
+                  <span className="text-[0.6rem] uppercase tracking-wider text-white/40">Products:</span>
+                  {item.productsUsed.map((prod) => (
+                    <span
+                      key={prod.slug}
+                      className="rounded bg-white/10 px-2 py-0.5 text-[0.6rem] text-white/80"
+                    >
+                      {prod.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom Banner */}
+        <div className="mt-14 flex flex-col items-center justify-between gap-6 rounded-xl border border-white/15 bg-white/5 p-8 backdrop-blur-sm md:flex-row">
+          <div>
+            <h4 className="text-xl font-normal text-white">Installing surfaces for a commercial or residential space?</h4>
+            <p className="mt-1 text-xs text-white/65">
+              Request material samples, project site measurements, or talk with our surface architects.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => openQuery()}
+            className="shrink-0 rounded-full bg-white px-6 py-3 text-[0.65rem] font-medium uppercase tracking-[0.12em] text-[#1c1712] transition-colors hover:bg-[#eee4d8]"
+          >
+            Request Site Visit / Samples
+          </button>
+        </div>
+      </div>
+
+      {/* Lightbox Modal */}
+      {activeItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
+          {/* Backdrop Overlay Click to Close */}
+          <div
+            className="absolute inset-0"
+            onClick={() => setActiveItemIndex(null)}
+          />
+
+          <div className="relative z-10 flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/20 bg-[#1c1712] shadow-2xl md:flex-row">
+            {/* Modal Close Button */}
+            <button
+              type="button"
+              onClick={() => setActiveItemIndex(null)}
+              className="absolute right-4 top-4 z-20 grid h-9 w-9 place-items-center rounded-full bg-black/60 text-white border border-white/20 transition-colors hover:bg-white hover:text-black"
+              aria-label="Close dialog"
+            >
+              <X size={18} />
+            </button>
+
+            {/* Left Image Section */}
+            <div className="relative flex min-h-[320px] flex-1 items-center justify-center bg-black/50 md:min-h-[500px]">
+              <img
+                src={activeItem.image}
+                alt={activeItem.title}
+                className="h-full w-full object-contain max-h-[70vh]"
+              />
+
+              {/* Prev / Next Nav Buttons inside Lightbox */}
+              {filteredItems.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePrev();
+                    }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 grid h-10 w-10 place-items-center rounded-full bg-black/60 text-white border border-white/20 transition-colors hover:bg-white hover:text-black"
+                    aria-label="Previous project"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNext();
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 grid h-10 w-10 place-items-center rounded-full bg-black/60 text-white border border-white/20 transition-colors hover:bg-white hover:text-black"
+                    aria-label="Next project"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Right Details Panel */}
+            <div className="flex w-full flex-col justify-between p-6 md:w-[380px] md:p-8 border-t md:border-t-0 md:border-l border-white/15 bg-[#211b15]">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-white/15 px-3 py-1 text-[0.6rem] font-medium uppercase tracking-wider text-white">
+                    {activeItem.category}
+                  </span>
+                  <span className="text-[0.65rem] font-mono text-white/50">{activeItem.year}</span>
+                </div>
+
+                <h3 className="mt-4 text-2xl font-normal tracking-tight text-white">
+                  {activeItem.title}
+                </h3>
+
+                <div className="mt-3 flex items-center gap-2 text-xs text-[#d8c2a3] font-mono">
+                  <MapPin size={13} />
+                  <span>{activeItem.location}, {activeItem.city}</span>
+                </div>
+
+                <p className="mt-5 text-xs leading-relaxed text-white/75 border-t border-white/10 pt-4">
+                  {activeItem.description}
+                </p>
+
+                {/* Products Installed */}
+                <div className="mt-6 border-t border-white/10 pt-4">
+                  <h4 className="text-[0.65rem] font-medium uppercase tracking-widest text-white/50">
+                    Products & Finishes Installed
+                  </h4>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {activeItem.productsUsed.map((prod) => (
+                      <Link
+                        key={prod.slug}
+                        to="/products"
+                        onClick={() => setActiveItemIndex(null)}
+                        className="group inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs text-white transition-colors hover:bg-white hover:text-[#1c1712]"
+                      >
+                        <span>{prod.name}</span>
+                        <ExternalLink size={12} className="opacity-60 group-hover:opacity-100" />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-8 pt-4 border-t border-white/10 flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveItemIndex(null);
+                    openQuery();
+                  }}
+                  className="w-full rounded-full bg-white py-3 text-[0.65rem] font-medium uppercase tracking-[0.12em] text-[#1c1712] transition-colors hover:bg-[#eee4d8]"
+                >
+                  Inquire About This Look
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function Home() {
   return (
     <main>
@@ -449,6 +860,7 @@ function Home() {
       <Products />
       <Bestsellers />
       <Story />
+      <ClientGallery />
       <Testimonial />
       <FAQs />
     </main>
