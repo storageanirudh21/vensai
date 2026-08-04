@@ -35,14 +35,6 @@ export function NavbarLogo({ to = "/", overHero = false, size = "md", className 
         >
           VENSAI GLOBAL
         </span>
-        <span
-          className={cn(
-            "font-sans text-[0.52rem] sm:text-[0.58rem] font-semibold tracking-[0.22em] uppercase mt-0.5",
-            overHero ? "text-white/80" : "text-[#8c734b]"
-          )}
-        >
-          Architectural Surfaces
-        </span>
       </div>
     </Link>
   );

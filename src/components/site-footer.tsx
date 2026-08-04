@@ -44,9 +44,6 @@ export function SiteFooter() {
                   <span className="font-display font-bold text-lg sm:text-xl tracking-[0.16em] uppercase text-[#1c1712]">
                     VENSAI GLOBAL
                   </span>
-                  <span className="font-sans text-[0.55rem] font-semibold tracking-[0.22em] uppercase text-[#8c734b] mt-0.5">
-                    Architectural Surfaces
-                  </span>
                 </div>
               </Link>
 
@@ -191,7 +188,7 @@ export function SiteFooter() {
           {/* Bottom Huge Brand Watermark Inside Card */}
           <div className="pt-8 overflow-hidden text-center">
             <span className="block select-none font-sans text-[16vw] sm:text-[14vw] md:text-[10rem] lg:text-[11.5rem] font-bold leading-[0.75] tracking-[-0.08em] text-[#28251f] uppercase">
-              VENSAI GLOBAL
+              VENSAI
             </span>
           </div>
         </div>
