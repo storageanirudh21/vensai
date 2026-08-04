@@ -110,7 +110,10 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   }
 }
 
-export async function createProduct(data: Omit<Product, "id" | "createdAt" | "updatedAt" | "publishedAt">): Promise<string> {
+export async function createProduct(
+  data: Omit<Product, "id" | "createdAt" | "updatedAt" | "publishedAt">,
+  customId?: string
+): Promise<string> {
   try {
     // 1. Verify slug uniqueness
     const slugQuery = query(collection(db, COLLECTION_NAME), where("slug", "==", data.slug));
@@ -119,7 +122,7 @@ export async function createProduct(data: Omit<Product, "id" | "createdAt" | "up
       throw new Error(`Product with slug "${data.slug}" already exists.`);
     }
 
-    const newDocRef = doc(collection(db, COLLECTION_NAME));
+    const newDocRef = customId ? doc(db, COLLECTION_NAME, customId) : doc(collection(db, COLLECTION_NAME));
     const productId = newDocRef.id;
 
     // Use transaction to set product and increment productCount in Category & Series

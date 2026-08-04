@@ -376,8 +376,7 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
   }, [isDirty]);
 
   // Image Upload handler
-  const handleImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+  const processImageFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
     setImageUploadProgress(10);
@@ -386,7 +385,6 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
       let idx = 1;
       
       for (const file of files) {
-        // Upload images one by one or show status
         const progressOffset = ((idx - 1) / files.length) * 100;
         const progressWeight = 1 / files.length;
 
@@ -398,7 +396,7 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
           url: imgGroup.optimized.url,
           thumbnailUrl: imgGroup.thumbnail.url,
           storagePath: imgGroup.optimized.storagePath,
-          alt: file.name.split(".")[0],
+          alt: file.name.replace(/\.[^/.]+$/, ""),
         };
 
         uploadedMetaArray.push(newMeta);
@@ -413,12 +411,19 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
         setValue("primaryImage", updatedImages[0] as any);
       }
 
-      toast.success("Images uploaded successfully");
+      toast.success(`${uploadedMetaArray.length} image(s) uploaded successfully`);
     } catch (error) {
+      console.error("Image upload error:", error);
       toast.error("Image upload failed");
     } finally {
       setImageUploadProgress(null);
     }
+  };
+
+  const handleImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    await processImageFiles(files);
+    e.target.value = "";
   };
 
   const handleRemoveImage = async (index: number) => {
@@ -426,9 +431,16 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
     try {
       // Delete optimized version
       await deleteStorageFile(target.storagePath);
-      // Delete thumbnail if present
+      // Delete original version
+      const origPath = target.storagePath
+        .replace("/optimized/", "/original/")
+        .replace("-optimized.webp", "-original.webp");
+      await deleteStorageFile(origPath);
+      // Delete thumbnail version if present
       if (target.thumbnailUrl) {
-        const thumbPath = target.storagePath.replace("/optimized/", "/thumbnails/").replace("-optimized.webp", "-thumbnail.webp");
+        const thumbPath = target.storagePath
+          .replace("/optimized/", "/thumbnails/")
+          .replace("-optimized.webp", "-thumbnail.webp");
         await deleteStorageFile(thumbPath);
       }
       
@@ -436,7 +448,10 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
       setValue("images", newImages, { shouldDirty: true });
 
       // If removed was primary, re-assign first remaining
-      if (primaryImageVal?.storagePath === target.storagePath) {
+      const isTargetPrimary =
+        primaryImageVal?.storagePath === target.storagePath ||
+        primaryImageVal?.url === target.url;
+      if (isTargetPrimary) {
         setValue("primaryImage", newImages[0] || null);
       }
 
@@ -541,8 +556,15 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.type !== "application/pdf") {
-      toast.error("Please upload a PDF brochure");
+    if (!catIdVal) {
+      toast.error("Please select a Category before uploading a brochure");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("Please upload a valid PDF brochure");
+      e.target.value = "";
       return;
     }
 
@@ -552,7 +574,7 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
         setBrochureUploadProgress(Math.max(10, p));
       });
 
-      const title = newBrochureTitle.trim() || file.name.split(".")[0];
+      const title = newBrochureTitle.trim() || file.name.replace(/\.[^/.]+$/, "");
       const brochureId = await createBrochure({
         title,
         categoryId: catIdVal,
@@ -579,6 +601,7 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
       toast.error("Brochure upload failed");
     } finally {
       setBrochureUploadProgress(null);
+      e.target.value = "";
     }
   };
 
@@ -586,9 +609,15 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
   const onSubmit = async (values: ProductFormValues) => {
     setSubmitting(true);
     try {
-      // Pre-validation checks
-      if (!values.primaryImage) {
-        toast.error("Please select a primary product image before publishing.");
+      // Auto-assign primary image if missing but images exist
+      let currentPrimary = values.primaryImage;
+      if (!currentPrimary && values.images && values.images.length > 0) {
+        currentPrimary = values.images[0];
+        setValue("primaryImage", currentPrimary);
+      }
+
+      if (!currentPrimary) {
+        toast.error("Please upload and select a primary product image before publishing.");
         setSubmitting(false);
         return;
       }
@@ -622,6 +651,7 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
 
       const finalPayload = {
         ...values,
+        primaryImage: currentPrimary,
         filterData: compiledFilterData
       };
 
@@ -629,11 +659,7 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
         await updateProduct(productId, finalPayload as any);
         toast.success("Product updated successfully");
       } else {
-        await setDoc(doc(db, "products", productId), {
-          ...finalPayload,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
+        await createProduct(finalPayload as any, productId);
         toast.success("Product created successfully");
       }
       reset(values); // clear dirty state
@@ -880,8 +906,22 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Image upload box */}
-              <div className="flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-[#E5E2DC] bg-white p-8 text-center transition-all hover:bg-neutral-50/50">
+              {/* Image upload box with drag & drop support */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(f.name));
+                  if (files.length > 0) {
+                    processImageFiles(files);
+                  }
+                }}
+                className="flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-[#E5E2DC] bg-white p-8 text-center transition-all hover:bg-neutral-50/50 hover:border-[#8B7D6B]"
+              >
                 {imageUploadProgress !== null ? (
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="h-8 w-8 animate-spin text-[#8B7D6B]" />

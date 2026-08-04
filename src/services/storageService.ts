@@ -173,14 +173,14 @@ export async function compressPdf(file: File): Promise<File> {
   return processedFile;
 }
 
-// Client-side image resizing utility using Canvas
+// Client-side image resizing utility using Canvas with safe fallbacks
 export async function resizeImage(
   file: File,
   maxWidth: number,
   maxHeight: number,
   quality = 0.82
 ): Promise<Blob> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if (typeof window === "undefined") {
       resolve(file);
       return;
@@ -190,48 +190,52 @@ export async function resizeImage(
     reader.onload = (event) => {
       const img = new Image();
       img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let width = img.width;
-        let height = img.height;
+        try {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
 
-        // Maintain aspect ratio
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          reject(new Error("Failed to get 2D canvas context"));
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(blob);
-            } else {
-              reject(new Error("Canvas conversion to Blob failed"));
+          // Maintain aspect ratio
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
             }
-          },
-          "image/webp",
-          quality
-        );
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = Math.max(1, width);
+          canvas.height = Math.max(1, height);
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(file);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                resolve(file);
+              }
+            },
+            "image/webp",
+            quality
+          );
+        } catch {
+          resolve(file);
+        }
       };
-      img.onerror = () => reject(new Error("Failed to load image element"));
+      img.onerror = () => resolve(file);
       img.src = event.target?.result as string;
     };
-    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.onerror = () => resolve(file);
     reader.readAsDataURL(file);
   });
 }
@@ -253,7 +257,10 @@ export async function uploadRawFile(
     fileToUpload = await compressPdf(file);
   }
 
-  const fileName = `${Date.now()}-${fileToUpload.name.replace(/\s+/g, "_")}`;
+  const rawName = fileToUpload.name.replace(/\.[^/.]+$/, "");
+  const safeName = rawName.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const ext = fileToUpload.name.split(".").pop() || "bin";
+  const fileName = `${Date.now()}-${safeName}.${ext}`;
   const fullPath = `${path.replace(/\/$/, "")}/${fileName}`;
   const storageRef = ref(storage, fullPath);
 
@@ -271,20 +278,25 @@ export async function uploadRawFile(
         reject(error);
       },
       async () => {
-        const url = await getDownloadURL(uploadTask.snapshot.ref);
-        resolve({
-          url,
-          storagePath: fullPath,
-          fileName: fileToUpload.name,
-          fileSize: fileToUpload.size,
-        });
+        try {
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve({
+            url,
+            storagePath: fullPath,
+            fileName: fileToUpload.name,
+            fileSize: fileToUpload.size,
+          });
+        } catch (error) {
+          console.error("Failed to get download URL:", error);
+          reject(error);
+        }
       }
     );
   });
 }
 
 /**
- * Uploads a product image and generates original, optimized, and thumbnail variants
+ * Uploads a product image and generates original, optimized, and thumbnail variants in parallel
  */
 export async function uploadProductImageGroup(
   productId: string,
@@ -294,12 +306,16 @@ export async function uploadProductImageGroup(
   // Compress input image first without quality loss
   const compressedInput = await compressImage(file);
 
-  const baseName = `${Date.now()}-${compressedInput.name.split(".")[0].replace(/\s+/g, "_")}`;
-  
-  // Create resized Blobs
-  const originalBlob = await resizeImage(compressedInput, 1600, 1600, 0.85); // original cap
-  const optimizedBlob = await resizeImage(compressedInput, 800, 800, 0.82);   // medium
-  const thumbnailBlob = await resizeImage(compressedInput, 400, 400, 0.80);   // thumbnail
+  const rawName = compressedInput.name.replace(/\.[^/.]+$/, "");
+  const safeName = rawName.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const baseName = `${Date.now()}-${safeName}`;
+
+  // Create resized Blobs in parallel
+  const [originalBlob, optimizedBlob, thumbnailBlob] = await Promise.all([
+    resizeImage(compressedInput, 1600, 1600, 0.85),
+    resizeImage(compressedInput, 800, 800, 0.82),
+    resizeImage(compressedInput, 400, 400, 0.80),
+  ]);
 
   const paths = {
     original: `products/${productId}/original/${baseName}-original.webp`,
@@ -307,8 +323,24 @@ export async function uploadProductImageGroup(
     thumbnail: `products/${productId}/thumbnails/${baseName}-thumbnail.webp`,
   };
 
-  // Upload variants
-  const uploadSingle = async (storagePath: string, blob: Blob, progressWeight: number, offset: number) => {
+  // Track progress of parallel uploads
+  const progressMap = { original: 0, optimized: 0, thumbnail: 0 };
+  const updateProgress = () => {
+    if (onProgress) {
+      // original = 40%, optimized = 40%, thumbnail = 20%
+      const totalProgress =
+        progressMap.original * 0.4 +
+        progressMap.optimized * 0.4 +
+        progressMap.thumbnail * 0.2;
+      onProgress(Math.round(totalProgress));
+    }
+  };
+
+  const uploadSingle = async (
+    storagePath: string,
+    blob: Blob,
+    variantKey: "original" | "optimized" | "thumbnail"
+  ) => {
     const storageRef = ref(storage, storagePath);
     const uploadTask = uploadBytesResumable(storageRef, blob);
 
@@ -316,29 +348,33 @@ export async function uploadProductImageGroup(
       uploadTask.on(
         "state_changed",
         (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          if (onProgress) {
-            onProgress(Math.round(offset + progress * progressWeight));
-          }
+          progressMap[variantKey] = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          updateProgress();
         },
         (error) => reject(error),
         async () => {
-          const url = await getDownloadURL(uploadTask.snapshot.ref);
-          resolve({
-            url,
-            storagePath,
-            fileName: storagePath.split("/").pop() || "",
-            fileSize: blob.size,
-          });
+          try {
+            const url = await getDownloadURL(uploadTask.snapshot.ref);
+            resolve({
+              url,
+              storagePath,
+              fileName: storagePath.split("/").pop() || "",
+              fileSize: blob.size,
+            });
+          } catch (e) {
+            reject(e);
+          }
         }
       );
     });
   };
 
-  // Upload variants sequentially
-  const originalMeta = await uploadSingle(paths.original, originalBlob, 0.4, 0);
-  const optimizedMeta = await uploadSingle(paths.optimized, optimizedBlob, 0.4, 40);
-  const thumbnailMeta = await uploadSingle(paths.thumbnail, thumbnailBlob, 0.2, 80);
+  // Upload variants in parallel
+  const [originalMeta, optimizedMeta, thumbnailMeta] = await Promise.all([
+    uploadSingle(paths.original, originalBlob, "original"),
+    uploadSingle(paths.optimized, optimizedBlob, "optimized"),
+    uploadSingle(paths.thumbnail, thumbnailBlob, "thumbnail"),
+  ]);
 
   if (onProgress) onProgress(100);
 
