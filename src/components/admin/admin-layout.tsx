@@ -14,19 +14,16 @@ import {
   Menu,
   X,
   User as UserIcon,
-  ChevronRight,
   ChevronDown,
   Bell,
   Search,
-  LayoutGrid,
-  Sparkles,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Store
 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { AdminUser, AdminRole } from "@/types/catalogue";
-import { Button } from "@/components/ui/button";
 import { NavbarLogo } from "@/components/navbar-logo";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -59,9 +56,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         if (adminDoc.exists() && adminDoc.data().active) {
           setAdmin({ uid: user.uid, ...adminDoc.data() } as AdminUser);
         } else {
-          // Logged in but not an active admin
           await signOut(auth);
-          toast.error("Unauthorized: Access denied.");
+          toast.error("Unauthorized access.");
           navigate({ to: "/admin/login" });
         }
       } catch (err) {
@@ -88,26 +84,25 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   if (loading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-[#FAF9F5]">
+      <div className="flex h-screen w-screen items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-3 border-[#8B7D6B] border-t-transparent shadow-md shadow-[#8B7D6B]/20" />
-          <p className="font-mono text-xs font-semibold text-[#776E63] uppercase tracking-widest">Loading Dashboard...</p>
+          <div className="h-10 w-10 animate-spin rounded-full border-3 border-black border-t-transparent shadow-sm" />
+          <p className="font-mono text-xs font-semibold text-neutral-600 uppercase tracking-widest">Loading Admin Dashboard...</p>
         </div>
       </div>
     );
   }
 
-  // Sidebar items grouped by section
   const menuGroups = [
     {
-      title: "Navigation",
+      title: "Overview",
       roles: ["super_admin", "catalogue_manager", "sales"],
       items: [
         { label: "Dashboard", href: "/admin", icon: LayoutDashboard, roles: ["super_admin", "catalogue_manager", "sales"] }
       ]
     },
     {
-      title: "Catalogue",
+      title: "Catalogue & Inventory",
       roles: ["super_admin", "catalogue_manager"],
       items: [
         { label: "Products", href: "/admin/products", icon: Package, roles: ["super_admin", "catalogue_manager"] },
@@ -117,7 +112,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       ]
     },
     {
-      title: "Leads & Enquiries",
+      title: "Orders & Leads",
       roles: ["super_admin", "sales"],
       items: [
         { label: "Enquiries", href: "/admin/enquiries", icon: Inbox, roles: ["super_admin", "sales"] },
@@ -125,7 +120,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       ]
     },
     {
-      title: "System & Access",
+      title: "Store Settings",
       roles: ["super_admin"],
       items: [
         { label: "Admin Users", href: "/admin/users", icon: Users, roles: ["super_admin"] },
@@ -134,7 +129,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     }
   ];
 
-  // Helper to determine if link is active
   const isLinkActive = (href: string) => {
     if (href === "/admin") {
       return currentPath === "/admin";
@@ -157,25 +151,21 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   const SidebarContent = () => (
-    <div className="flex h-full flex-col bg-white text-[#211C17] border-r border-[#E5E2DC]">
+    <div className="flex h-full flex-col bg-white text-black border-r border-neutral-200">
       {/* Brand Header */}
-      <div className="flex h-20 items-center justify-between border-b border-[#E5E2DC] px-6">
-        <div>
-          <NavbarLogo size="sm" />
-          <p className="text-[9px] font-medium text-[#776E63] uppercase tracking-wider mt-1 pl-[1.875rem]">Architectural Surfaces</p>
-        </div>
-        <button className="rounded-lg p-1.5 text-[#776E63] hover:bg-[#FAF8F5] hover:text-[#211C17] transition-colors">
-          <SlidersHorizontal className="h-4 w-4" />
-        </button>
+      <div className="flex h-16 items-center justify-between border-b border-neutral-200 px-5 bg-white">
+        <Link to="/admin" className="flex items-center gap-2">
+          <img src="/logo.png" alt="Vensai Prime Interiors" className="h-8 w-auto object-contain" />
+        </Link>
       </div>
 
       {/* Navigation Links */}
-      <nav className="flex-1 overflow-y-auto px-4 py-6 scrollbar-hide space-y-6">
+      <nav className="flex-1 overflow-y-auto px-3.5 py-5 space-y-6">
         {menuGroups.map((group) => {
           if (!hasGroupAccess(group.roles)) return null;
           return (
-            <div key={group.title} className="space-y-1.5">
-              <h2 className="px-3 text-[11px] font-semibold text-[#776E63] uppercase tracking-wider">
+            <div key={group.title} className="space-y-1">
+              <h2 className="px-3 text-[10px] font-bold text-neutral-400 uppercase tracking-widest font-mono">
                 {group.title}
               </h2>
               <ul className="space-y-1">
@@ -189,18 +179,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                         to={item.href}
                         onClick={() => setMobileOpen(false)}
                         className={cn(
-                          "group flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-medium transition-all",
+                          "group flex items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold transition-all",
                           active
-                            ? "bg-[#F5F1EA] text-[#211C17] font-bold shadow-xs border border-[#E5E2DC]"
-                            : "text-[#5B554C] hover:bg-[#FAF8F5] hover:text-[#211C17]"
+                            ? "bg-black text-white shadow-sm"
+                            : "text-neutral-700 hover:bg-neutral-100 hover:text-black"
                         )}
                       >
                         <span className="flex items-center gap-3">
-                          <Icon className={cn("h-4 w-4 shrink-0 transition-colors", active ? "text-[#8B7D6B]" : "text-[#776E63] group-hover:text-[#211C17]")} />
+                          <Icon className={cn("h-4 w-4 shrink-0 transition-colors", active ? "text-white" : "text-black")} />
                           {item.label}
                         </span>
                         {active && (
-                          <span className="h-1.5 w-1.5 rounded-full bg-[#8B7D6B]" />
+                          <span className="h-1.5 w-1.5 rounded-full bg-white" />
                         )}
                       </Link>
                     </li>
@@ -214,23 +204,23 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Admin User Footer Profile */}
       {admin && (
-        <div className="border-t border-[#E5E2DC] p-4 bg-[#FAF8F5]">
-          <div className="flex items-center justify-between rounded-xl border border-[#E5E2DC] bg-white p-3 shadow-xs">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#211C17] text-[#EADFCE] font-bold text-xs">
+        <div className="border-t border-neutral-200 p-3.5 bg-neutral-50">
+          <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-2.5 shadow-xs">
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black text-white font-bold text-xs">
                 {admin.name ? admin.name.substring(0, 2).toUpperCase() : "VP"}
               </div>
               <div className="overflow-hidden">
-                <p className="truncate text-xs font-semibold text-[#211C17]">{admin.name}</p>
-                <p className="truncate text-[10px] text-[#776E63] font-medium">{getRoleLabel(admin.role)}</p>
+                <p className="truncate text-xs font-bold text-black">{admin.name}</p>
+                <p className="truncate text-[10px] text-neutral-500 font-mono">{getRoleLabel(admin.role)}</p>
               </div>
             </div>
             <button
               onClick={handleLogout}
-              className="rounded-lg p-2 text-[#776E63] hover:bg-red-50 hover:text-red-600 transition-colors"
+              className="rounded-md p-1.5 text-black hover:bg-neutral-100 hover:text-red-600 transition-colors"
               title="Logout"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-4 w-4 text-black" />
             </button>
           </div>
         </div>
@@ -239,84 +229,92 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   );
 
   return (
-    <div className="flex min-h-screen w-full bg-[#FAF9F5] text-[#211C17] font-sans">
-      {/* Desktop Sidebar (Permanent) */}
-      <aside className="hidden w-64 shrink-0 md:block">
+    <div className="flex min-h-screen w-full bg-white text-black font-sans">
+      {/* Desktop Sidebar */}
+      <aside className="hidden w-60 shrink-0 md:block">
         <SidebarContent />
       </aside>
 
-      {/* Mobile Sidebar (Drawer) */}
+      {/* Mobile Drawer */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
-          {/* Backdrop */}
-          <div className="fixed inset-0 bg-[#211C17]/40 backdrop-blur-xs" onClick={() => setMobileOpen(false)} />
-          
-          <div className="relative flex w-64 flex-col bg-white animate-slide-in shadow-2xl">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs" onClick={() => setMobileOpen(false)} />
+          <div className="relative flex w-60 flex-col bg-white shadow-2xl">
             <button
               onClick={() => setMobileOpen(false)}
-              className="absolute right-4 top-4 rounded-lg bg-[#FAF8F5] p-1.5 text-[#776E63] hover:bg-[#E5E2DC]"
+              className="absolute right-3 top-3.5 rounded-lg bg-neutral-100 p-1 text-black hover:bg-neutral-200"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4 text-black" />
             </button>
             <SidebarContent />
           </div>
         </div>
       )}
 
-      {/* Main Body */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      {/* Main Content Area */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-white">
         {/* Top Header Bar */}
-        <header className="flex h-20 items-center justify-between border-b border-[#E5E2DC] bg-white px-6 md:px-8">
+        <header className="flex h-16 items-center justify-between border-b border-neutral-200 bg-white px-6 md:px-8">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setMobileOpen(true)}
-              className="rounded-xl p-2 text-[#5B554C] hover:bg-[#FAF8F5] md:hidden"
+              className="rounded-lg p-2 text-black hover:bg-neutral-100 md:hidden"
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-5 w-5 text-black" />
             </button>
 
-            {/* Header Search Input Bar matching homepage palette */}
+            {/* Global Search Bar */}
             <div className="relative hidden sm:flex items-center">
-              <Search className="absolute left-3.5 h-4 w-4 text-[#776E63] pointer-events-none" />
+              <Search className="absolute left-3.5 h-4 w-4 text-black pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search catalogue..."
-                className="h-10 w-72 rounded-xl bg-[#FAF8F5] border border-[#E5E2DC] pl-10 pr-4 text-xs text-[#211C17] placeholder-[#776E63] focus:outline-none focus:border-[#8B7D6B] focus:ring-2 focus:ring-[#8B7D6B]/20 transition-all"
+                placeholder="Search store catalogue..."
+                className="h-9 w-72 rounded-lg bg-neutral-50 border border-neutral-200 pl-10 pr-4 text-xs text-black placeholder-neutral-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-4">
+            {/* View Live Store Link */}
+            <a
+              href="/"
+              target="_blank"
+              rel="noreferrer"
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-700 hover:text-black border border-neutral-200 px-3 py-1.5 rounded-lg bg-neutral-50 hover:bg-neutral-100 transition-all"
+            >
+              <Store className="h-3.5 w-3.5 text-black" />
+              View Live Store
+            </a>
+
             {/* Notification Icon */}
-            <button className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-[#FAF8F5] border border-[#E5E2DC] text-[#5B554C] hover:text-[#211C17] transition-colors" aria-label="Notifications">
-              <Bell className="h-4 w-4" />
-              <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[#8B7D6B] ring-2 ring-white" />
+            <button className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-neutral-50 border border-neutral-200 text-black hover:bg-neutral-100 transition-colors" aria-label="Notifications">
+              <Bell className="h-4 w-4 text-black" />
+              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-black ring-2 ring-white" />
             </button>
 
-            {/* User Profile Pill Widget on top right */}
+            {/* Profile Widget */}
             {admin && (
-              <div className="flex items-center gap-3 pl-2 border-l border-[#E5E2DC]">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#211C17] text-[#EADFCE] font-bold text-xs shadow-xs">
+              <div className="flex items-center gap-2.5 pl-3 border-l border-neutral-200">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-white font-bold text-xs">
                   {admin.name ? admin.name.substring(0, 2).toUpperCase() : "VP"}
                 </div>
                 <div className="hidden sm:block text-left">
                   <div className="flex items-center gap-1">
-                    <span className="text-xs font-bold text-[#211C17]">{admin.name}</span>
-                    <ChevronDown className="h-3.5 w-3.5 text-[#776E63]" />
+                    <span className="text-xs font-bold text-black">{admin.name}</span>
+                    <ChevronDown className="h-3.5 w-3.5 text-black" />
                   </div>
-                  <p className="text-[10px] text-[#776E63] font-medium">{getRoleLabel(admin.role)}</p>
+                  <p className="text-[10px] text-neutral-500 font-mono">{getRoleLabel(admin.role)}</p>
                 </div>
               </div>
             )}
           </div>
         </header>
 
-        {/* Content Area */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+        {/* Content Body with Crisp White Background */}
+        <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-white">
           {children}
         </main>
       </div>
     </div>
   );
 }
-

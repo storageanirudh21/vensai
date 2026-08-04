@@ -1,6 +1,38 @@
 {
   "indexes": [
     {
+      "collectionGroup": "series",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "categoryId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "order",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "series",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "categoryId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "order",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "siteVisits",
       "queryScope": "COLLECTION",
       "fields": [

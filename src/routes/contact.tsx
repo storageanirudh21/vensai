@@ -36,17 +36,17 @@ const studios = [
   {
     city: "Chennai Flagship Studio",
     address: "No. 14, Poonamallee High Road, Kilpauk, Chennai 600010",
-    phone: "+91 98400 12345",
+    phone: "+91 90590 99792",
   },
   {
     city: "Bengaluru Experience Center",
     address: "212, 100 Feet Road, Indiranagar, Bengaluru 560038",
-    phone: "+91 98400 23456",
+    phone: "+91 90590 99792",
   },
   {
     city: "Hyderabad Studio",
     address: "8-2-120, Road No. 2, Banjara Hills, Hyderabad 500034",
-    phone: "+91 98400 34567",
+    phone: "+91 90590 99792",
   },
 ];
 

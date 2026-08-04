@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { VensaiMark } from "@/components/vensai-mark";
 import { cn } from "@/lib/utils";
 
 interface NavbarLogoProps {
@@ -10,51 +9,41 @@ interface NavbarLogoProps {
 }
 
 export function NavbarLogo({ to = "/", overHero = false, size = "md", className }: NavbarLogoProps) {
-  const markSizes = {
-    sm: "h-5 w-5",
-    md: "h-6 w-6",
-    lg: "h-8 w-8",
-  };
-
-  const textSizes = {
-    sm: "text-base sm:text-lg",
-    md: "text-[1.65rem]",
-    lg: "text-2xl sm:text-3xl",
-  };
-
-  const subTextSizes = {
-    sm: "text-[0.5rem]",
-    md: "text-[0.55rem]",
-    lg: "text-[0.65rem]",
+  const logoHeights = {
+    sm: "h-8 sm:h-9",
+    md: "h-10 sm:h-12",
+    lg: "h-12 sm:h-14",
   };
 
   return (
-    <Link to={to} className={cn("flex items-center gap-2.5 group text-center shrink-0", className)}>
-      <VensaiMark
+    <Link to={to} className={cn("flex items-center gap-3 shrink-0 group", className)}>
+      <img
+        src="/logo.png"
+        alt="Vensai Global"
         className={cn(
-          markSizes[size],
-          "transition-transform group-hover:rotate-12 shrink-0",
-          overHero ? "text-white" : "text-[#755c3b]"
+          "w-auto object-contain transition-transform group-hover:scale-[1.03]",
+          logoHeights[size]
         )}
       />
-      <span
-        className={cn(
-          "font-display font-semibold tracking-[0.18em] uppercase whitespace-nowrap leading-none",
-          textSizes[size],
-          overHero ? "text-white" : "text-[#24221e]"
-        )}
-      >
-        VENSAI{" "}
+      <div className="flex flex-col text-left leading-none">
         <span
           className={cn(
-            "font-sans font-medium tracking-[0.32em]",
-            subTextSizes[size],
-            overHero ? "text-white/65" : "text-[#755c3b]"
+            "font-display font-bold tracking-[0.16em] uppercase whitespace-nowrap",
+            size === "sm" ? "text-xs sm:text-sm" : size === "lg" ? "text-xl sm:text-2xl" : "text-base sm:text-lg",
+            overHero ? "text-white drop-shadow-xs" : "text-[#1c1712]"
           )}
         >
-          PRIME
+          VENSAI GLOBAL
         </span>
-      </span>
+        <span
+          className={cn(
+            "font-sans text-[0.52rem] sm:text-[0.58rem] font-semibold tracking-[0.22em] uppercase mt-0.5",
+            overHero ? "text-white/80" : "text-[#8c734b]"
+          )}
+        >
+          Architectural Surfaces
+        </span>
+      </div>
     </Link>
   );
 }

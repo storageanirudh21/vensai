@@ -1,10 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { getBrochures, createBrochure, deleteBrochure } from "@/services/brochureService";
 import { getCategories } from "@/services/categoryService";
 import { uploadRawFile, deleteStorageFile } from "@/services/storageService";
 import { Brochure, Category } from "@/types/catalogue";
-import { FileText, Plus, Trash2, Upload, Loader2, Link as LinkIcon, Info } from "lucide-react";
+import { FileText, Plus, Trash2, Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,169 +49,226 @@ function AdminBrochuresPage() {
     loadData();
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
-
-    if (selectedFile.type !== "application/pdf") {
-      toast.error("Only PDF files are supported");
-      return;
-    }
-
-    setFile(selectedFile);
-    if (!title) {
-      setTitle(selectedFile.name.split(".")[0]);
-    }
-  };
-
-  const handleUpload = async (e: React.FormEvent) => {
+  const handleUploadBrochure = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !title.trim()) {
-      toast.error("Please enter a title and select a PDF file.");
+    if (!title.trim()) {
+      toast.error("Please enter a brochure title.");
+      return;
+    }
+    if (!file) {
+      toast.error("Please select a PDF file to upload.");
       return;
     }
 
-    setUploadProgress(10);
     try {
-      const categoryId = selectedCategory === "none" ? null : selectedCategory;
-      const folderPath = `brochures/${categoryId || "general"}`;
+      setUploadProgress(0);
+      const catObj = categories.find(c => c.id === selectedCategory);
       
-      const meta = await uploadRawFile(folderPath, file, (p) => {
-        setUploadProgress(Math.max(10, p));
-      });
+      const fileMeta = await uploadRawFile(
+        `brochures/${selectedCategory !== "none" ? selectedCategory : "general"}`,
+        file,
+        (pct) => setUploadProgress(pct)
+      );
 
       await createBrochure({
-        title: title.trim(),
-        categoryId,
+        title,
         fileName: file.name,
-        fileUrl: meta.url,
-        storagePath: meta.storagePath,
-        fileSize: file.size,
-        status: "active"
+        fileUrl: fileMeta.url,
+        pdfUrl: fileMeta.url,
+        storagePath: fileMeta.storagePath,
+        categoryId: selectedCategory !== "none" ? selectedCategory : null,
+        categoryName: catObj ? catObj.name : null,
+        fileSize: fileMeta.fileSize,
+        status: "active",
       });
 
-      toast.success("Brochure uploaded successfully");
-      
-      // Reset form
+      toast.success("Brochure uploaded successfully!");
       setTitle("");
       setSelectedCategory("none");
       setFile(null);
-      
-      // Reload table
+      setUploadProgress(null);
       loadData();
+
     } catch (error) {
-      toast.error("Brochure upload failed");
-    } finally {
+      console.error(error);
+      toast.error("Brochure upload failed.");
       setUploadProgress(null);
     }
   };
 
-  const handleDelete = async (id: string, storagePath: string, name: string) => {
-    if (!window.confirm(`Delete brochure "${name}"?`)) {
-      return;
-    }
-
+  const handleDelete = async (brochure: Brochure) => {
+    if (!confirm(`Delete brochure "${brochure.title}"?`)) return;
     try {
-      // 1. Delete from Firebase Storage
-      await deleteStorageFile(storagePath);
-      // 2. Delete document in Firestore
-      await deleteBrochure(id);
-      
+      if (brochure.storagePath) {
+        await deleteStorageFile(brochure.storagePath);
+      }
+      await deleteBrochure(brochure.id);
       toast.success("Brochure deleted");
-      loadData();
+      setBrochures(prev => prev.filter(b => b.id !== brochure.id));
     } catch (error) {
-      toast.error("Deletion failed");
+      toast.error("Failed to delete brochure");
     }
   };
 
-  const getCategoryName = (catId: string | null) => {
-    if (!catId) return "General / Unassigned";
-    const cat = categories.find(c => c.id === catId);
-    return cat ? cat.name : "Unknown Category";
-  };
-
-  const formatSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return "N/A";
+    const mb = bytes / (1024 * 1024);
+    return `${mb.toFixed(2)} MB`;
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="font-display text-3xl font-bold tracking-tight text-[#121212] md:text-4xl">Brochures</h1>
-        <p className="text-sm text-[#776E63]">Upload and link catalogs and technical brochures for category items.</p>
+    <div className="space-y-8 font-sans bg-white">
+      {/* Top Header */}
+      <div className="border-b border-neutral-200 pb-5">
+        <h1 className="font-display text-2xl font-extrabold tracking-tight text-black sm:text-3xl">Catalogue PDF Brochures</h1>
+        <p className="text-xs text-neutral-500 font-medium mt-0.5">Upload and manage product catalog PDF downloads with automatic image raster compression.</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-12 items-start">
-        {/* Left: Listing Table */}
-        <Card className="rounded-lg border-[#E5E2DC] lg:col-span-8 bg-white shadow-sm overflow-hidden">
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold">Active Catalogues</CardTitle>
-            <CardDescription className="font-mono text-[9px] uppercase tracking-wider text-[#776E63]">
-              PDF attachments
+      <div className="grid gap-8 lg:grid-cols-12 items-start">
+        {/* Left Form: Upload Brochure */}
+        <Card className="rounded-xl border border-neutral-200 bg-white shadow-xs lg:col-span-4">
+          <CardHeader className="border-b border-neutral-200 p-5 bg-neutral-50/50">
+            <CardTitle className="font-display text-base font-extrabold text-black">Upload PDF Brochure</CardTitle>
+            <CardDescription className="text-xs text-neutral-500 font-medium">
+              Files are automatically compressed client-side before uploading.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-5">
+            <form onSubmit={handleUploadBrochure} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wider text-black font-mono">Brochure Title *</Label>
+                <Input
+                  placeholder="e.g. Vensai Global PVC Ceiling Catalogue 2026"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="rounded-lg border-neutral-200 bg-white text-xs text-black"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wider text-black font-mono">Associated Category</Label>
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="rounded-lg border-neutral-200 text-xs text-black">
+                    <SelectValue placeholder="General Catalogue" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-neutral-200 text-xs">
+                    <SelectItem value="none">General Catalogue (All Categories)</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wider text-black font-mono">Select PDF File *</Label>
+                <Input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  className="rounded-lg border-neutral-200 text-xs text-black cursor-pointer"
+                />
+              </div>
+
+              {uploadProgress !== null && (
+                <div className="space-y-1 pt-2">
+                  <div className="flex justify-between text-xs font-mono font-bold text-black">
+                    <span>Compressing & Uploading...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-100">
+                    <div className="h-full bg-black transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                  </div>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={uploadProgress !== null}
+                className="w-full h-10 rounded-lg bg-black hover:bg-neutral-800 text-white font-semibold text-xs shadow-sm mt-4"
+              >
+                {uploadProgress !== null ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4 text-white" />
+                )}
+                Upload Brochure
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Right Table: Existing Brochures */}
+        <Card className="rounded-xl border border-neutral-200 bg-white shadow-xs overflow-hidden lg:col-span-8">
+          <CardHeader className="border-b border-neutral-200 p-5 bg-neutral-50/50">
+            <CardTitle className="font-display text-base font-extrabold text-black">Active Brochures ({brochures.length})</CardTitle>
+            <CardDescription className="text-xs text-neutral-500 font-medium">
+              PDF documents downloadable across website categories
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
-              <TableHeader className="bg-neutral-50/50">
-                <TableRow className="border-b border-[#E5E2DC] font-mono text-[9px] tracking-wider uppercase text-[#776E63]">
-                  <TableHead>Brochure Title</TableHead>
-                  <TableHead>Associated Category</TableHead>
-                  <TableHead>File Name</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+              <TableHeader className="bg-neutral-50 border-b border-neutral-200">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="font-bold text-black text-[11px] uppercase tracking-wider">Brochure Title</TableHead>
+                  <TableHead className="font-bold text-black text-[11px] uppercase tracking-wider">Category</TableHead>
+                  <TableHead className="font-bold text-black text-[11px] uppercase tracking-wider">Size</TableHead>
+                  <TableHead className="w-[80px] font-bold text-black text-[11px] uppercase tracking-wider text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   [...Array(3)].map((_, i) => (
-                    <TableRow key={i} className="border-b border-[#E5E2DC]/50">
-                      <TableCell><Skeleton className="h-4 w-40 bg-neutral-100" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-28 bg-neutral-100" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-32 bg-neutral-100" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-12 bg-neutral-100" /></TableCell>
-                      <TableCell><Skeleton className="ml-auto h-8 w-8 bg-neutral-100" /></TableCell>
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-48 bg-neutral-100 rounded" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-24 bg-neutral-100 rounded" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-16 bg-neutral-100 rounded" /></TableCell>
+                      <TableCell><Skeleton className="h-8 w-8 bg-neutral-100 rounded ml-auto" /></TableCell>
                     </TableRow>
                   ))
                 ) : brochures.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-xs text-muted-foreground font-mono">
-                      No brochures uploaded yet. Create one using the form on the right.
+                    <TableCell colSpan={4} className="h-40 text-center">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <FileText className="h-8 w-8 text-black opacity-30" />
+                        <p className="text-xs font-bold text-black">No PDF brochures uploaded</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  brochures.map((b) => (
-                    <TableRow key={b.id} className="border-b border-[#E5E2DC]/50 hover:bg-neutral-50/30 transition-colors">
-                      <TableCell className="font-semibold text-xs text-[#121212]">{b.title}</TableCell>
-                      <TableCell className="text-xs">{getCategoryName(b.categoryId)}</TableCell>
-                      <TableCell className="font-mono text-[10px] text-[#776E63] max-w-[150px] truncate" title={b.fileName}>
-                        {b.fileName}
+                  brochures.map((brochure) => (
+                    <TableRow key={brochure.id} className="hover:bg-neutral-50 transition-colors border-b border-neutral-100">
+                      <TableCell>
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-100 border border-neutral-200 text-black shrink-0">
+                            <FileText className="h-4 w-4 text-black" />
+                          </div>
+                          <div>
+                            <a href={brochure.fileUrl || brochure.pdfUrl} target="_blank" rel="noreferrer" className="font-bold text-xs text-black hover:underline">
+                              {brochure.title}
+                            </a>
+                          </div>
+                        </div>
                       </TableCell>
-                      <TableCell className="font-mono text-[10px] text-neutral-600">{formatSize(b.fileSize)}</TableCell>
-                      <TableCell className="text-right flex items-center justify-end gap-1 py-3">
+                      <TableCell>
+                        <span className="text-xs font-medium text-black font-mono">
+                          {brochure.categoryName || "General Catalogue"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs font-mono font-semibold text-neutral-600">
+                          {formatFileSize(brochure.fileSize)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
                         <Button
                           variant="ghost"
-                          size="xs"
-                          asChild
-                          className="h-8 w-8 p-0 text-neutral-600 hover:bg-neutral-100"
-                          title="Open PDF"
+                          size="icon"
+                          onClick={() => handleDelete(brochure)}
+                          className="h-8 w-8 rounded-lg hover:bg-red-50 hover:text-red-600 text-black"
+                          title="Delete Brochure"
                         >
-                          <a href={b.fileUrl} target="_blank" rel="noopener noreferrer">
-                            <FileText className="h-4 w-4" />
-                          </a>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => handleDelete(b.id, b.storagePath, b.title)}
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                          title="Delete brochure"
-                        >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 text-black hover:text-red-600" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -219,91 +276,6 @@ function AdminBrochuresPage() {
                 )}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-
-        {/* Right: Upload Box Form */}
-        <Card className="rounded-lg border-[#E5E2DC] lg:col-span-4 bg-white shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold">Upload Catalogue</CardTitle>
-            <CardDescription className="font-mono text-[9px] uppercase tracking-wider text-[#776E63]">
-              Upload PDF Brochure
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleUpload} className="space-y-5">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-[#5B554C] font-mono">Brochure Title *</Label>
-                <Input
-                  placeholder="e.g. WPC Panels Catalogue"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="rounded-sm border-[#E5E2DC]"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-[#5B554C] font-mono">Associated Category</Label>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="rounded-sm border-[#E5E2DC] text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border-[#E5E2DC] rounded-sm text-xs font-mono">
-                    <SelectItem value="none">General / Unassigned</SelectItem>
-                    {categories.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-[#5B554C] font-mono">PDF File *</Label>
-                {file ? (
-                  <div className="rounded border bg-neutral-50 p-3.5 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-[#8B7D6B] shrink-0" />
-                      <div className="overflow-hidden">
-                        <span className="text-xs font-semibold block text-neutral-800 truncate">{file.name}</span>
-                        <span className="font-mono text-[9px] text-[#776E63]">{formatSize(file.size)}</span>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => setFile(null)}
-                      className="text-red-500 font-mono text-[9px] uppercase tracking-wider h-6 hover:bg-red-50"
-                    >
-                      Remove File
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-[#E5E2DC] bg-white p-6 text-center transition-all hover:bg-neutral-50/50">
-                    {uploadProgress !== null ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <Loader2 className="h-6 w-6 animate-spin text-[#8B7D6B]" />
-                        <p className="font-mono text-[9px] text-[#776E63]">Uploading PDF {uploadProgress}%</p>
-                      </div>
-                    ) : (
-                      <label className="flex cursor-pointer flex-col items-center gap-1.5">
-                        <Upload className="h-6 w-6 text-[#776E63]/60" />
-                        <span className="font-mono text-[10px] text-[#211C17] font-semibold">Select PDF Brochure</span>
-                        <input type="file" accept="application/pdf" onChange={handleFileChange} className="hidden" />
-                      </label>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <Button
-                type="submit"
-                disabled={!file || !title.trim() || uploadProgress !== null}
-                className="w-full rounded-sm bg-[#211C17] text-white hover:bg-[#4E3F30] font-mono text-xs uppercase tracking-widest py-5"
-              >
-                {uploadProgress !== null ? "Uploading..." : "Upload Brochure"}
-              </Button>
-            </form>
           </CardContent>
         </Card>
       </div>

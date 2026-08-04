@@ -2,13 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { getSiteVisits } from "@/services/siteVisitService";
 import { SiteVisit, SiteVisitStatus } from "@/types/catalogue";
-import { Calendar, Eye, Search, ArrowRight } from "lucide-react";
+import { Calendar, Eye, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/site-visits/")({
   component: AdminSiteVisitsPage,
@@ -45,11 +46,11 @@ function AdminSiteVisitsPage() {
   const getStatusBadge = (status: SiteVisitStatus) => {
     switch (status) {
       case "requested":
-        return <Badge className="bg-[#8B7D6B] font-mono text-[9px] uppercase tracking-wider text-white">Requested</Badge>;
+        return <Badge className="bg-black font-mono text-[9px] uppercase tracking-wider text-white">Requested</Badge>;
       case "confirmed":
-        return <Badge variant="outline" className="text-blue-600 border-blue-600 font-mono text-[9px] uppercase tracking-wider">Confirmed</Badge>;
+        return <Badge variant="outline" className="text-blue-700 border-blue-600 font-mono text-[9px] uppercase tracking-wider">Confirmed</Badge>;
       case "completed":
-        return <Badge variant="outline" className="text-emerald-600 border-emerald-600 font-mono text-[9px] uppercase tracking-wider">Completed</Badge>;
+        return <Badge variant="outline" className="text-emerald-700 border-emerald-600 font-mono text-[9px] uppercase tracking-wider">Completed</Badge>;
       case "cancelled":
         return <Badge variant="secondary" className="font-mono text-[9px] uppercase tracking-wider">Cancelled</Badge>;
       default:
@@ -57,109 +58,116 @@ function AdminSiteVisitsPage() {
     }
   };
 
-  const filteredVisits = visits.filter(v => {
-    const term = searchTerm.toLowerCase();
-    return v.customerName.toLowerCase().includes(term) ||
-           v.phone.includes(term) ||
-           v.email.toLowerCase().includes(term) ||
-           v.location.toLowerCase().includes(term);
+  const filteredVisits = visits.filter((v) => {
+    const matchSearch =
+      v.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      v.phone.includes(searchTerm) ||
+      v.location.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchSearch;
   });
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="font-display text-3xl font-bold tracking-tight text-[#121212] md:text-4xl">Site Visits</h1>
-        <p className="text-sm text-[#776E63]">Manage site consultation bookings and showroom experience center visits.</p>
-      </div>
-
-      {/* Controls */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search customer, location, phone..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 border-[#E5E2DC] rounded-sm focus-visible:ring-[#8B7D6B] text-xs"
-          />
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-2">
-          {(["all", "requested", "confirmed", "completed", "cancelled"] as const).map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`rounded-sm border px-3 py-1.5 text-xs font-mono tracking-wider uppercase transition-colors ${
-                statusFilter === status
-                  ? "border-[#211C17] bg-[#211C17] text-white"
-                  : "border-[#E5E2DC] text-[#776E63] hover:border-[#211C17] hover:text-[#211C17]"
-              }`}
-            >
-              {status}
-            </button>
-          ))}
+    <div className="space-y-6 font-sans bg-white">
+      {/* Top Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-neutral-200 pb-5">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="font-display text-2xl font-extrabold tracking-tight text-black sm:text-3xl">Site Visits</h1>
+            <Badge className="bg-black text-white font-mono text-[10px] uppercase">
+              {filteredVisits.length} Bookings
+            </Badge>
+          </div>
+          <p className="text-xs text-neutral-500 font-medium mt-0.5">Manage customer site inspection bookings and scheduled consultations.</p>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border border-[#E5E2DC] bg-white shadow-sm overflow-hidden">
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-xs">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-black" />
+            <Input
+              placeholder="Search by client name, phone, or location..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 h-9 text-xs rounded-lg border-neutral-200 bg-neutral-50 text-black placeholder-neutral-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(["all", "requested", "confirmed", "completed", "cancelled"] as const).map((st) => (
+              <Button
+                key={st}
+                variant={statusFilter === st ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter(st)}
+                className={cn("h-8 rounded-lg text-xs font-semibold uppercase", statusFilter === st ? "bg-black text-white" : "border-neutral-200 text-black")}
+              >
+                {st}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Visits Table */}
+      <div className="rounded-xl border border-neutral-200 bg-white shadow-xs overflow-hidden">
         <Table>
-          <TableHeader className="bg-neutral-50/50">
-            <TableRow className="border-b border-[#E5E2DC] font-mono text-[9px] tracking-wider uppercase text-[#776E63]">
-              <TableHead>Customer</TableHead>
-              <TableHead>Preferred Date & Time</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Project Type</TableHead>
-              <TableHead>Product Ref</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Booked On</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+          <TableHeader className="bg-neutral-50 border-b border-neutral-200">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="font-bold text-black text-[11px] uppercase tracking-wider">Client & Contact</TableHead>
+              <TableHead className="font-bold text-black text-[11px] uppercase tracking-wider">Scheduled Date & Time</TableHead>
+              <TableHead className="font-bold text-black text-[11px] uppercase tracking-wider">Location / City</TableHead>
+              <TableHead className="w-[100px] font-bold text-black text-[11px] uppercase tracking-wider">Status</TableHead>
+              <TableHead className="w-[80px] font-bold text-black text-[11px] uppercase tracking-wider text-right">View</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               [...Array(4)].map((_, i) => (
-                <TableRow key={i} className="border-b border-[#E5E2DC]/50">
-                  <TableCell>
-                    <Skeleton className="h-4 w-28 bg-neutral-100" />
-                    <Skeleton className="h-3 w-36 bg-neutral-100 mt-1" />
-                  </TableCell>
-                  <TableCell><Skeleton className="h-4 w-32 bg-neutral-100" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-40 bg-neutral-100" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-16 bg-neutral-100" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24 bg-neutral-100" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-14 bg-neutral-100" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-16 bg-neutral-100" /></TableCell>
-                  <TableCell><Skeleton className="ml-auto h-8 w-8 bg-neutral-100" /></TableCell>
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-40 bg-neutral-100 rounded" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-32 bg-neutral-100 rounded" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-36 bg-neutral-100 rounded" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16 bg-neutral-100 rounded" /></TableCell>
+                  <TableCell><Skeleton className="h-8 w-8 bg-neutral-100 rounded ml-auto" /></TableCell>
                 </TableRow>
               ))
             ) : filteredVisits.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center text-xs text-muted-foreground font-mono">
-                  No site visits booked.
+                <TableCell colSpan={5} className="h-40 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Calendar className="h-8 w-8 text-black opacity-30" />
+                    <p className="text-xs font-bold text-black">No site visits found</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
               filteredVisits.map((v) => (
-                <TableRow key={v.id} className="border-b border-[#E5E2DC]/50 hover:bg-neutral-50/30 transition-colors">
+                <TableRow key={v.id} className="hover:bg-neutral-50 transition-colors border-b border-neutral-100">
                   <TableCell>
-                    <div className="font-semibold text-xs text-[#121212]">{v.customerName}</div>
-                    <div className="font-mono text-[9px] text-[#776E63] mt-0.5">{v.phone}</div>
+                    <div>
+                      <p className="font-bold text-xs text-black">{v.customerName}</p>
+                      <p className="font-mono text-[10px] text-neutral-500">{v.phone} • {v.email}</p>
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-xs font-semibold text-neutral-800">{v.preferredDate}</div>
-                    <div className="font-mono text-[9px] text-[#776E63] mt-0.5">{v.preferredTime}</div>
+                    <div>
+                      <p className="font-mono text-xs font-bold text-black">{v.preferredDate} @ {v.preferredTime}</p>
+                      <p className="text-[10px] text-neutral-400 font-mono">Booked: {formatDate(v.createdAt)}</p>
+                    </div>
                   </TableCell>
-                  <TableCell className="text-xs truncate max-w-[200px]" title={v.location}>{v.location}</TableCell>
-                  <TableCell className="text-xs capitalize font-mono text-[10px]">{v.projectType || "—"}</TableCell>
-                  <TableCell className="text-xs truncate max-w-[150px] font-semibold text-[#8B7D6B]">{v.productName || "—"}</TableCell>
-                  <TableCell>{getStatusBadge(v.status)}</TableCell>
-                  <TableCell className="font-mono text-[9px] text-muted-foreground">{formatDate(v.createdAt)}</TableCell>
+                  <TableCell>
+                    <span className="text-xs font-medium text-black">
+                      {v.location}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {getStatusBadge(v.status)}
+                  </TableCell>
                   <TableCell className="text-right">
-                    <Button asChild size="xs" variant="outline" className="rounded-sm h-7 text-[10px] font-mono border-[#E5E2DC]">
+                    <Button asChild variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-neutral-100">
                       <Link to="/admin/site-visits/$id" params={{ id: v.id }}>
-                        Logistics <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                        <Eye className="h-4 w-4 text-black" />
                       </Link>
                     </Button>
                   </TableCell>

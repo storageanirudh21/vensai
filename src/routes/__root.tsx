@@ -129,50 +129,30 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isAdmin = pathname.startsWith("/admin");
+  const [mounted, setMounted] = useState(false);
 
-  // On hard refresh the SPA shell hydrates before the matched route's chunk/loader
-  // resolves; rendering chrome immediately shows header+footer around an empty
-  // <main> for a beat (the footer "flash"). Wait for the first load to settle.
-  const isInitialLoadPending = useRouterState({ select: (s) => s.status === "pending" });
-  const [hasSettledOnce, setHasSettledOnce] = useState(!isInitialLoadPending);
   useEffect(() => {
-    if (!isInitialLoadPending) setHasSettledOnce(true);
-  }, [isInitialLoadPending]);
-
-  if (!hasSettledOnce) {
-    return <div className="min-h-screen bg-[#FAF9F5]" />;
-  }
-
-  if (isAdmin) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <div className="flex min-h-screen flex-col bg-[#FAF9F5] text-[#121212]">
-          <main className="flex-1 flex flex-col">
-            <Outlet />
-          </main>
-          <Toaster position="bottom-right" />
-        </div>
-      </QueryClientProvider>
-    );
-  }
+    setMounted(true);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <LeadProvider>
         <div className="flex min-h-screen flex-col">
           <SiteHeader />
-          <main className="flex-1">
-            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <main className="flex-1 flex flex-col">
             <Outlet />
           </main>
           <SiteFooter />
         </div>
-        <QuickQueryModal />
-        <BookVisitModal />
-        <FloatingActions />
-        <Toaster position="bottom-right" />
+        {mounted && (
+          <>
+            <QuickQueryModal />
+            <BookVisitModal />
+            <FloatingActions />
+            <Toaster position="bottom-right" />
+          </>
+        )}
       </LeadProvider>
     </QueryClientProvider>
   );

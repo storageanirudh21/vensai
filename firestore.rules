@@ -38,14 +38,14 @@ service cloud.firestore {
 
     // Enquiries Collection
     match /enquiries/{enquiryId} {
-      allow create: if true; // Public submission
-      allow read, update, delete: if isSignedIn();
+      allow read, create: if true; // Public submission & dashboard stats
+      allow update, delete: if isSignedIn();
     }
 
     // Site Visits Collection
     match /siteVisits/{visitId} {
-      allow create: if true; // Public submission
-      allow read, update, delete: if isSignedIn();
+      allow read, create: if true; // Public submission & dashboard stats
+      allow update, delete: if isSignedIn();
     }
     
     // Settings Collection

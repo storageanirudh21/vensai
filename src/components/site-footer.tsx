@@ -1,9 +1,12 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Facebook, Instagram, Linkedin, Youtube } from "lucide-react";
 import { collections } from "@/lib/products";
 import { useLead } from "@/lib/lead";
 
 export function SiteFooter() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  if (pathname.startsWith("/admin")) return null;
+
   const { openQuery } = useLead();
 
   return (
@@ -29,12 +32,28 @@ export function SiteFooter() {
         {/* Floating White Card */}
         <div className="rounded-3xl bg-[#fcfaf5] text-[#28251f] p-8 md:p-14 shadow-2xl">
           <div className="grid gap-12 lg:grid-cols-[1.2fr_1fr_1fr_1fr] pb-12 border-b border-[#e2dacd]">
-            {/* Left Column: Contact & Socials */}
+            {/* Left Column: Brand, Contact & Socials */}
             <div>
+              <Link to="/" className="flex items-center gap-3 mb-6 group">
+                <img
+                  src="/logo.png"
+                  alt="Vensai Global"
+                  className="h-11 sm:h-12 w-auto object-contain transition-transform group-hover:scale-[1.02]"
+                />
+                <div className="flex flex-col text-left leading-none">
+                  <span className="font-display font-bold text-lg sm:text-xl tracking-[0.16em] uppercase text-[#1c1712]">
+                    VENSAI GLOBAL
+                  </span>
+                  <span className="font-sans text-[0.55rem] font-semibold tracking-[0.22em] uppercase text-[#8c734b] mt-0.5">
+                    Architectural Surfaces
+                  </span>
+                </div>
+              </Link>
+
               <div className="space-y-2 text-sm text-[#4a443b] font-medium">
                 <p>
-                  <a href="tel:+919840012345" className="hover:text-[#96754b] transition-colors">
-                    +91 98400 12345
+                  <a href="https://wa.me/919059099792" target="_blank" rel="noopener noreferrer" className="hover:text-[#96754b] transition-colors">
+                    +91 90590 99792 (WhatsApp)
                   </a>
                 </p>
                 <p>
@@ -66,9 +85,20 @@ export function SiteFooter() {
                 ))}
               </div>
 
-              <p className="mt-8 text-[0.72rem] text-[#8c8273] leading-relaxed">
-                © Copyright {new Date().getFullYear()} Vensai Prime Interiors. All rights reserved.
-              </p>
+              <div className="mt-8 space-y-1 text-[0.72rem] text-[#8c8273] leading-relaxed">
+                <p>© Copyright {new Date().getFullYear()} Vensai Global. All rights reserved.</p>
+                <p>
+                  Design &amp; Developed by{" "}
+                  <a
+                    href="https://www.viscano.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-bold text-[#28251f] hover:text-[#96754b] underline underline-offset-2 transition-colors"
+                  >
+                    Viscano
+                  </a>
+                </p>
+              </div>
             </div>
 
             {/* Column 1: Pages */}
@@ -160,8 +190,8 @@ export function SiteFooter() {
 
           {/* Bottom Huge Brand Watermark Inside Card */}
           <div className="pt-8 overflow-hidden text-center">
-            <span className="block select-none font-sans text-[22vw] sm:text-[18vw] md:text-[14rem] lg:text-[15.5rem] font-bold leading-[0.75] tracking-[-0.08em] text-[#28251f] uppercase">
-              VENSAI
+            <span className="block select-none font-sans text-[16vw] sm:text-[14vw] md:text-[10rem] lg:text-[11.5rem] font-bold leading-[0.75] tracking-[-0.08em] text-[#28251f] uppercase">
+              VENSAI GLOBAL
             </span>
           </div>
         </div>

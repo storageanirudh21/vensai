@@ -20,25 +20,39 @@ import { Series } from "@/types/catalogue";
 const COLLECTION_NAME = "series";
 
 export async function getSeriesByCategory(categoryId: string, includeHidden = true): Promise<Series[]> {
+  if (!categoryId) return [];
   try {
-    let q = query(
+    const q = query(
       collection(db, COLLECTION_NAME),
-      where("categoryId", "==", categoryId),
-      orderBy("order", "asc")
+      where("categoryId", "==", categoryId)
     );
-    if (!includeHidden) {
-      q = query(
-        collection(db, COLLECTION_NAME),
-        where("categoryId", "==", categoryId),
-        where("status", "==", "active"),
-        orderBy("order", "asc")
-      );
-    }
     const snap = await getDocs(q);
-    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Series);
+    let list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Series);
+
+    if (!includeHidden) {
+      list = list.filter(s => s.status === "active");
+    }
+
+    return list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   } catch (error) {
     console.error(`Error getting series for category ${categoryId}:`, error);
-    throw error;
+    return [];
+  }
+}
+
+export async function getAllSeries(includeHidden = true): Promise<Series[]> {
+  try {
+    const snap = await getDocs(collection(db, COLLECTION_NAME));
+    let list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Series);
+
+    if (!includeHidden) {
+      list = list.filter(s => s.status === "active");
+    }
+
+    return list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  } catch (error) {
+    console.error("Error getting all series:", error);
+    return [];
   }
 }
 

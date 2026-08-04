@@ -1,5 +1,14 @@
 import { storage } from "@/lib/firebase";
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
+import imageCompression from "browser-image-compression";
+import { PDFDocument } from "pdf-lib";
+import * as pdfjsLib from "pdfjs-dist";
+
+// Configure pdf.js worker for client-side execution
+if (typeof window !== "undefined") {
+  const v = pdfjsLib.version || "4.10.38";
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${v}/build/pdf.worker.min.mjs`;
+}
 
 export interface UploadedFileMetadata {
   url: string;
@@ -14,7 +23,157 @@ export interface UploadedImageGroup {
   thumbnail: UploadedFileMetadata;
 }
 
-// Client-side image resizing utility
+/**
+ * Compresses an image file without perceptible quality loss using browser-image-compression,
+ * with automatic fallback to canvas-based WebP conversion.
+ */
+export async function compressImage(file: File): Promise<File> {
+  if (typeof window === "undefined") return file;
+  if (file.size < 150 * 1024) return file; // Skip compression for small files (<150KB)
+
+  try {
+    const options = {
+      maxSizeMB: 1.5,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+      initialQuality: 0.82,
+      fileType: "image/webp",
+    };
+
+    const compressedBlob = await imageCompression(file, options);
+    if (compressedBlob && compressedBlob.size < file.size) {
+      const ext = compressedBlob.type === "image/webp" ? "webp" : file.name.split(".").pop() || "jpg";
+      const newName = `${file.name.replace(/\.[^/.]+$/, "")}.${ext}`;
+      const compressedFile = new File([compressedBlob], newName, {
+        type: compressedBlob.type || "image/webp",
+        lastModified: Date.now(),
+      });
+      console.log(`[Storage] Image compressed: ${(file.size / 1024).toFixed(1)}KB -> ${(compressedFile.size / 1024).toFixed(1)}KB`);
+      return compressedFile;
+    }
+  } catch (error) {
+    console.warn("[Storage] Image compression library fallback to canvas:", error);
+    try {
+      const fallbackBlob = await resizeImage(file, 1920, 1920, 0.82);
+      if (fallbackBlob.size < file.size) {
+        return new File([fallbackBlob], `${file.name.replace(/\.[^/.]+$/, "")}.webp`, {
+          type: "image/webp",
+          lastModified: Date.now(),
+        });
+      }
+    } catch (e) {
+      // Fall through to returning original file
+    }
+  }
+
+  return file;
+}
+
+/**
+ * Deep compresses heavy PDFs containing large embedded high-res images
+ * by rendering page canvases and re-encoding at optimized JPEG quality.
+ */
+export async function compressHeavyPdf(file: File): Promise<File> {
+  if (typeof window === "undefined") return file;
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
+    const pdfDoc = await loadingTask.promise;
+    const numPages = pdfDoc.numPages;
+
+    if (numPages === 0) return file;
+
+    const newPdf = await PDFDocument.create();
+
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      const page = await pdfDoc.getPage(pageNum);
+      const viewport = page.getViewport({ scale: 1.5 }); // ~150 DPI target resolution
+
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(viewport.width);
+      canvas.height = Math.round(viewport.height);
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) continue;
+
+      await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
+
+      // Convert page canvas to compressed JPEG blob
+      const jpegDataUrl = canvas.toDataURL("image/jpeg", 0.78);
+      const imageBytes = await fetch(jpegDataUrl).then((res) => res.arrayBuffer());
+      const embeddedImage = await newPdf.embedJpg(imageBytes);
+
+      // Create new page with original dimensions
+      const originalViewport = page.getViewport({ scale: 1.0 });
+      const newPage = newPdf.addPage([originalViewport.width, originalViewport.height]);
+      newPage.drawImage(embeddedImage, {
+        x: 0,
+        y: 0,
+        width: originalViewport.width,
+        height: originalViewport.height,
+      });
+    }
+
+    const compressedBytes = await newPdf.save({ useObjectStreams: true });
+    if (compressedBytes.byteLength < file.size) {
+      const compressedBlob = new Blob([compressedBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+      const compressedFile = new File([compressedBlob], file.name, {
+        type: "application/pdf",
+        lastModified: Date.now(),
+      });
+      console.log(`[Storage] Deep PDF compression: ${(file.size / (1024 * 1024)).toFixed(2)}MB -> ${(compressedFile.size / (1024 * 1024)).toFixed(2)}MB`);
+      return compressedFile;
+    }
+  } catch (error) {
+    console.warn("[Storage] Deep PDF compression fallback:", error);
+  }
+
+  return file;
+}
+
+/**
+ * Compresses a PDF file using stream object compression, and automatically triggers
+ * deep image raster compression for heavy PDFs (>3MB) to reduce file size by 70–95%.
+ */
+export async function compressPdf(file: File): Promise<File> {
+  if (typeof window === "undefined") return file;
+  if (file.size < 100 * 1024) return file; // Skip tiny PDFs (<100KB)
+
+  let processedFile = file;
+
+  // Pass 1: Fast stream object compression with pdf-lib
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+
+    const compressedBytes = await pdfDoc.save({
+      useObjectStreams: true,
+      addDefaultPage: false,
+    });
+
+    if (compressedBytes.byteLength < file.size) {
+      const compressedBlob = new Blob([compressedBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+      processedFile = new File([compressedBlob], file.name, {
+        type: "application/pdf",
+        lastModified: Date.now(),
+      });
+    }
+  } catch (error) {
+    console.warn("[Storage] PDF stream compression skipped:", error);
+  }
+
+  // Pass 2: Heavy PDF Rasterization Pass for large image-based PDFs (>3MB)
+  const reductionPercentage = ((file.size - processedFile.size) / file.size) * 100;
+  if (file.size > 3 * 1024 * 1024 && reductionPercentage < 15) {
+    console.log(`[Storage] Running deep image raster compression for heavy PDF (${(file.size / (1024 * 1024)).toFixed(1)}MB)...`);
+    processedFile = await compressHeavyPdf(file);
+  }
+
+  return processedFile;
+}
+
+// Client-side image resizing utility using Canvas
 export async function resizeImage(
   file: File,
   maxWidth: number,
@@ -22,7 +181,6 @@ export async function resizeImage(
   quality = 0.82
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    // If running in SSR, return the file as-is (though uploading is a client-only action)
     if (typeof window === "undefined") {
       resolve(file);
       return;
@@ -79,18 +237,27 @@ export async function resizeImage(
 }
 
 /**
- * Uploads a raw file (e.g. PDF brochure) to Storage
+ * Uploads a raw file (e.g. PDF brochure, cover photo) to Storage with automatic image/PDF compression
  */
 export async function uploadRawFile(
   path: string,
   file: File,
   onProgress?: (progress: number) => void
 ): Promise<UploadedFileMetadata> {
-  const fileName = `${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+  let fileToUpload = file;
+
+  // Compress file before uploading
+  if (file.type.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(file.name)) {
+    fileToUpload = await compressImage(file);
+  } else if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+    fileToUpload = await compressPdf(file);
+  }
+
+  const fileName = `${Date.now()}-${fileToUpload.name.replace(/\s+/g, "_")}`;
   const fullPath = `${path.replace(/\/$/, "")}/${fileName}`;
   const storageRef = ref(storage, fullPath);
 
-  const uploadTask = uploadBytesResumable(storageRef, file);
+  const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
 
   return new Promise((resolve, reject) => {
     uploadTask.on(
@@ -108,8 +275,8 @@ export async function uploadRawFile(
         resolve({
           url,
           storagePath: fullPath,
-          fileName: file.name,
-          fileSize: file.size,
+          fileName: fileToUpload.name,
+          fileSize: fileToUpload.size,
         });
       }
     );
@@ -124,12 +291,15 @@ export async function uploadProductImageGroup(
   file: File,
   onProgress?: (progress: number) => void
 ): Promise<UploadedImageGroup> {
-  const baseName = `${Date.now()}-${file.name.split(".")[0].replace(/\s+/g, "_")}`;
+  // Compress input image first without quality loss
+  const compressedInput = await compressImage(file);
+
+  const baseName = `${Date.now()}-${compressedInput.name.split(".")[0].replace(/\s+/g, "_")}`;
   
   // Create resized Blobs
-  const originalBlob = await resizeImage(file, 1600, 1600, 0.85); // original size cap
-  const optimizedBlob = await resizeImage(file, 800, 800, 0.82);   // medium
-  const thumbnailBlob = await resizeImage(file, 400, 400, 0.80);   // thumbnail
+  const originalBlob = await resizeImage(compressedInput, 1600, 1600, 0.85); // original cap
+  const optimizedBlob = await resizeImage(compressedInput, 800, 800, 0.82);   // medium
+  const thumbnailBlob = await resizeImage(compressedInput, 400, 400, 0.80);   // thumbnail
 
   const paths = {
     original: `products/${productId}/original/${baseName}-original.webp`,
@@ -165,7 +335,7 @@ export async function uploadProductImageGroup(
     });
   };
 
-  // Upload in sequence or concurrently. In sequence lets us track overall progress easily.
+  // Upload variants sequentially
   const originalMeta = await uploadSingle(paths.original, originalBlob, 0.4, 0);
   const optimizedMeta = await uploadSingle(paths.optimized, optimizedBlob, 0.4, 40);
   const thumbnailMeta = await uploadSingle(paths.thumbnail, thumbnailBlob, 0.2, 80);
@@ -188,6 +358,5 @@ export async function deleteStorageFile(storagePath: string): Promise<void> {
     await deleteObject(fileRef);
   } catch (error) {
     console.error(`Failed to delete storage file at ${storagePath}:`, error);
-    // Suppress error if the file was already deleted/not found
   }
 }

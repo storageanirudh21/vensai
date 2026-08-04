@@ -137,8 +137,10 @@ export interface Brochure {
   id: string;
   title: string;
   categoryId: string | null;
+  categoryName?: string | null;
   fileName: string;
   fileUrl: string;
+  pdfUrl?: string;
   storagePath: string;
   fileSize: number;
   status: "active" | "hidden";

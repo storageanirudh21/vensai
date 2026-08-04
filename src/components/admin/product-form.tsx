@@ -41,6 +41,40 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { toast } from "sonner";
 import { Link, useNavigate } from "@tanstack/react-router";
 
+// Helper for auto SKU generation
+export function generateProductSku(productName: string, categoryName?: string): string {
+  if (!productName || !productName.trim()) return "";
+  
+  let catPrefix = "VNS";
+  if (categoryName) {
+    const cleanedCat = categoryName.replace(/[^a-zA-Z0-9\s]/g, "").trim();
+    const catWords = cleanedCat.split(/\s+/);
+    if (catWords.length >= 2) {
+      catPrefix = catWords.map(w => w[0]).join("").toUpperCase().slice(0, 4);
+    } else if (cleanedCat.length >= 3) {
+      catPrefix = cleanedCat.slice(0, 3).toUpperCase();
+    }
+  }
+
+  const cleanedName = productName.replace(/[^a-zA-Z0-9\s-]/g, "").trim();
+  const parts = cleanedName.split(/[\s-]+/);
+  
+  let nameCode = "";
+  const numbers = cleanedName.match(/\d+/g);
+
+  if (parts.length === 1) {
+    nameCode = parts[0].slice(0, 4).toUpperCase();
+  } else {
+    nameCode = parts.map(p => p[0]).join("").toUpperCase();
+    if (nameCode.length < 3) {
+      nameCode = parts[0].slice(0, 3).toUpperCase();
+    }
+  }
+
+  const numberSuffix = numbers ? `-${numbers.join("")}` : "";
+  return `${catPrefix}-${nameCode}${numberSuffix}`.replace(/--+/g, "-");
+}
+
 // Validation schema
 const productSchema = z.object({
   name: z.string().min(1, "Product Name is required"),
@@ -194,7 +228,9 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
   const specFieldsVal = watch("specifications") || [];
   const filterDataVal = watch("filterData") || {};
 
-  // Auto-generate slug & SEO suggestions
+  const skuVal = watch("sku");
+
+  // Auto-generate slug & SKU & SEO suggestions
   useEffect(() => {
     if (nameVal && !isEdit && !duplicateId) {
       const generatedSlug = nameVal
@@ -203,8 +239,15 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
         .replace(/(^-|-$)+/g, "");
       setValue("slug", generatedSlug);
       setValue("seo.title", `${nameVal} | Vensai Prime`);
+
+      // Auto-generate SKU if SKU is currently empty
+      if (!skuVal) {
+        const catObj = categories.find(c => c.id === catIdVal);
+        const autoSku = generateProductSku(nameVal, catObj?.name);
+        setValue("sku", autoSku);
+      }
     }
-  }, [nameVal, setValue, isEdit, duplicateId]);
+  }, [nameVal, catIdVal, categories, setValue, isEdit, duplicateId, skuVal]);
 
   // Load standard dropdown options
   useEffect(() => {
@@ -769,12 +812,32 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-[#5B554C] font-mono">SKU / Code</Label>
-                  <Input
-                    placeholder="e.g. WPC-11-001"
-                    {...register("sku")}
-                    className="rounded-sm border-[#E5E2DC] font-mono"
-                  />
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-black font-mono">SKU / Code *</Label>
+                    <span className="text-[10px] text-neutral-400 font-mono">Auto-generated</span>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <Input
+                      placeholder="e.g. WPC-CLP-1104"
+                      {...register("sku")}
+                      className="rounded-lg border-neutral-200 bg-white font-mono text-xs text-black"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const catObj = categories.find(c => c.id === catIdVal);
+                        const autoSku = generateProductSku(nameVal || "PROD", catObj?.name);
+                        setValue("sku", autoSku, { shouldDirty: true });
+                        toast.success(`Generated SKU: ${autoSku}`);
+                      }}
+                      className="rounded-lg border-neutral-200 text-xs font-semibold shrink-0 hover:bg-neutral-100 text-black px-2.5"
+                      title="Auto-generate SKU"
+                    >
+                      <Sparkles className="mr-1 h-3.5 w-3.5 text-black" /> Auto
+                    </Button>
+                  </div>
                 </div>
               </div>
 

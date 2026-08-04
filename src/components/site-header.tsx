@@ -14,10 +14,12 @@ const nav = [
 ] as const;
 
 export function SiteHeader() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  if (pathname.startsWith("/admin")) return null;
+
   const { openQuery } = useLead();
   const [scrolled, setScrolled] = useState(false);
   const [menu, setMenu] = useState(false);
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const overHero = pathname === "/" && !scrolled;
 
   useEffect(() => {

@@ -27,7 +27,7 @@ export function FloatingActions() {
           Chat on WhatsApp
         </span>
         <a
-          href="https://wa.me/919840012345?text=Hello%20Vensai%20Prime%20Interiors%2C%20I%20would%20like%20to%20enquire%20about%20your%20surfaces."
+          href="https://wa.me/919059099792?text=Hello%20Vensai%20Global%2C%20I%20would%20like%20to%20enquire%20about%20your%20architectural%20surfaces."
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Chat on WhatsApp"

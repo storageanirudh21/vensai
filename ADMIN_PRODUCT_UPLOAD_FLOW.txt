@@ -1,0 +1,164 @@
+================================================================================
+          VENSAI PRIME INTERIORS - ADMIN DASHBOARD PRODUCT UPLOADER
+                           TECHNICAL & USER FLOW
+================================================================================
+
+OVERVIEW
+--------------------------------------------------------------------------------
+This document details the complete end-to-end flow for uploading and managing 
+products within the Vensai Prime Interiors Admin Dashboard. It includes category 
+assignment, client-side media compression, variant generation, dynamic 
+specifications, filter tag mapping, and Firestore database synchronization.
+
+
+================================================================================
+STEP-BY-STEP PRODUCT UPLOAD FLOW
+================================================================================
+
+1. CATEGORY & SERIES SELECTION
+   -----------------------------------------------------------------------------
+   a. Navigate to Admin Dashboard -> Products -> "Add Product" (/admin/products/new).
+   b. Select the parent Category (e.g., "WPC Panels", "PVC Wall Panels", "Louvers").
+   c. Upon selecting a category:
+      - The system dynamically fetches and populates the available Series dropdown
+        associated with that specific Category (e.g., "11 Series", "14 Series").
+      - The system automatically loads the Category's pre-configured 
+        Specification Templates and Filter Configurations.
+
+2. GENERAL PRODUCT METADATA
+   -----------------------------------------------------------------------------
+   a. Product Name: Enter title (e.g., "Charcoal Louver Panel 11-04").
+   b. SKU: Unique Stock Keeping Unit identifier (auto-suggested or manual entry).
+   c. Slug: Auto-generated from Product Name (URL-friendly, lowercase with dashes).
+   d. Short Description: Brief summary for product cards and quick views.
+   e. Detailed Description: Rich textual overview explaining features, material 
+      composition, and application contexts.
+   f. Status: Set visibility ("active" = live on website catalog, "hidden" = CMS only).
+   g. Featured Toggle: Enable to highlight on homepage/featured showcases.
+   h. Display Order: Numeric sequence index for catalog sorting.
+
+3. MEDIA & IMAGE COMPRESSION FLOW
+   -----------------------------------------------------------------------------
+   a. File Selection:
+      - Select high-resolution product photos (JPEG, PNG, WebP, GIF, BMP).
+      - Multiple image selection supported.
+
+   b. Client-Side Automatic Compression (Zero Quality Loss):
+      - BEFORE uploading to Firebase Storage, `storageService.ts` executes 
+        `compressImage(file)`:
+        * Max HD bounding dimensions: 1920px (maintains aspect ratio).
+        * Target quality: 85% WebP format conversion via `browser-image-compression`.
+        * Reduces file size by 60%–85% (e.g., 8MB camera photo -> ~200KB WebP) 
+          without noticeable visual degradation.
+
+   c. Multi-Variant Image Generation & Storage:
+      - For each product image, three optimized size variants are generated:
+        1) Original / Full HD (1600px cap) -> `products/{productId}/original/...`
+        2) Optimized / Medium (800px cap)  -> `products/{productId}/optimized/...`
+        3) Thumbnail (400px cap)           -> `products/{productId}/thumbnails/...`
+
+   d. Upload to Firebase Storage:
+      - Uploads generated variants to Firebase Storage using `uploadBytesResumable`.
+      - Tracks real-time upload progress percentage (0% to 100%).
+      - Automatically designates the first uploaded image as the Primary Cover Image.
+
+4. DYNAMIC SPECIFICATIONS
+   -----------------------------------------------------------------------------
+   a. System automatically pulls standard specification fields from the selected 
+      Category template (e.g., Dimensions, Thickness, Material, Surface Finish).
+   b. Admin fills in field values and measurement units (mm, cm, feet, kg).
+   c. Additional custom specification key-value pairs can be appended as needed.
+
+5. DYNAMIC FILTERS & FACETS
+   -----------------------------------------------------------------------------
+   a. Map product traits to Category filter configs (e.g., Color Family, Texture, 
+      Waterproof status, Fire Rating).
+   b. These filter tags power the public catalog sidebar search & filtering engine.
+
+6. BROCHURE & PDF ATTACHMENT (OPTIONAL)
+   -----------------------------------------------------------------------------
+   a. If a technical brochure or installation catalog PDF is uploaded:
+      - System runs `compressPdf(file)` via `pdf-lib` stream object optimization.
+      - Strips redundant streams and compresses PDF bytes losslessly.
+      - Uploads to `brochures/{categoryId}/...` and attaches download link.
+
+7. SEO CONFIGURATION
+   -----------------------------------------------------------------------------
+   a. Meta Title: Auto-formatted as "[Product Name] | Vensai Prime Interiors".
+   b. Meta Description: Search engine snippet overview.
+   c. Keywords: Comma-separated search keywords for search ranking optimization.
+
+8. FIRESTORE DATABASE SYNCHRONIZATION
+   -----------------------------------------------------------------------------
+   a. Form validation executed via Zod schema.
+   b. Product document written to Firestore collection `products/{productId}`:
+      - Document structure contains metadata, image variant URLs, specifications, 
+        filter arrays, SEO data, and timestamps (`createdAt`, `updatedAt`).
+   c. Category and Series product counts are atomically incremented.
+
+
+================================================================================
+FIRESTORE DOCUMENT SCHEMA SUMMARY
+================================================================================
+
+Collection Path: /products/{productId}
+
+{
+  "id": "prod_12345",
+  "name": "WPC Fluted Panel - Teak",
+  "slug": "wpc-fluted-panel-teak",
+  "sku": "WPC-11-TEAK",
+  "categoryId": "cat_wpc_panels",
+  "categoryName": "WPC Panels",
+  "seriesId": "series_11",
+  "seriesName": "11 Series",
+  "shortDescription": "Premium outdoor/indoor fluted wall paneling in teak finish.",
+  "description": "Engineered wood-polymer composite panel resistant to moisture and termites.",
+  "status": "active",
+  "featured": true,
+  "order": 1,
+  "primaryImage": {
+    "url": "https://firebasestorage.googleapis.com/.../products/prod_12345/optimized/teak-optimized.webp",
+    "thumbnailUrl": "https://firebasestorage.googleapis.com/.../products/prod_12345/thumbnails/teak-thumbnail.webp",
+    "storagePath": "products/prod_12345/optimized/teak-optimized.webp",
+    "alt": "WPC Fluted Panel Teak"
+  },
+  "images": [ ...array of image objects... ],
+  "specifications": [
+    { "key": "thickness", "label": "Thickness", "value": "12", "unit": "mm" },
+    { "key": "length", "label": "Length", "value": "9.5", "unit": "feet" }
+  ],
+  "filterValues": {
+    "color": ["Brown", "Wood Grain"],
+    "material": ["WPC"],
+    "waterproof": true
+  },
+  "seo": {
+    "title": "WPC Fluted Panel - Teak | Vensai Prime Interiors",
+    "description": "Buy high quality teak WPC fluted wall panels.",
+    "keywords": ["wpc panel", "teak panel", "wall cladding"]
+  },
+  "createdAt": "Timestamp",
+  "updatedAt": "Timestamp"
+}
+
+
+================================================================================
+TROUBLESHOOTING & COMMON RULES
+================================================================================
+
+1. STORAGE PERMISSION ERRORS (unauthorized):
+   - Firebase Storage Security Rules are configured in `storage.rules`.
+   - Ensure the rules are deployed using `firebase deploy --only storage`.
+   - Access rule: `allow read: if true; allow write: if request.auth != null;`
+
+2. IMAGE UPLOAD SLOWNESS:
+   - High-resolution camera photos (10MB+) are compressed automatically in browser 
+     web workers before upload begins.
+   - Progress bar indicates combined compression and upload progress.
+
+3. PDF COMPRESSION:
+   - PDFs are compressed using `pdf-lib` stream object optimization.
+   - If a PDF is already compressed (<100KB), compression is bypassed automatically.
+
+================================================================================

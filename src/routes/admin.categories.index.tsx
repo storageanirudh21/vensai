@@ -10,9 +10,7 @@ import {
   Edit2,
   Trash2,
   Eye,
-  EyeOff,
-  Copy,
-  Layers
+  Copy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,217 +47,214 @@ function AdminCategoriesPage() {
   
   const navigate = useNavigate();
 
-  const loadCategories = async () => {
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
     try {
       setLoading(true);
-      const list = await getCategories(true);
-      setCategories(list);
-    } catch (error) {
+      const data = await getCategories(true);
+      setCategories(data);
+    } catch (err) {
       toast.error("Failed to load categories");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
   const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete category "${name}"?`)) {
-      return;
-    }
-
+    if (!confirm(`Are you sure you want to delete category "${name}"?`)) return;
     try {
       await deleteCategory(id);
-      toast.success(`Category "${name}" deleted successfully`);
-      loadCategories();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to delete category");
+      toast.success(`Category "${name}" deleted`);
+      setCategories(prev => prev.filter(c => c.id !== id));
+    } catch (err) {
+      toast.error("Failed to delete category");
     }
   };
 
-  const handleToggleStatus = async (category: Category) => {
-    const newStatus = category.status === "active" ? "hidden" : "active";
+  const handleToggleStatus = async (cat: Category) => {
+    const nextStatus = cat.status === "active" ? "hidden" : "active";
     try {
-      await updateCategory(category.id, { status: newStatus });
-      toast.success(`Category status updated to ${newStatus}`);
-      loadCategories();
-    } catch (error) {
-      toast.error("Failed to update status");
+      await updateCategory(cat.id, { status: nextStatus });
+      toast.success(`Category status set to ${nextStatus}`);
+      setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, status: nextStatus } : c));
+    } catch (err) {
+      toast.error("Status update failed");
     }
   };
 
-  const handleDuplicate = async (category: Category) => {
-    navigate({
-      to: `/admin/categories/new`,
-      search: { duplicateId: category.id }
-    });
-  };
-
-  const formatDate = (timestamp: any) => {
-    if (!timestamp) return "-";
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' });
-  };
-
-  const filteredCategories = categories.filter((cat) => {
-    const matchesSearch = cat.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          cat.slug.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredCategories = categories.filter(cat => {
+    const matchesSearch = cat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cat.slug.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || cat.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   return (
-    <div className="space-y-6 font-sans">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6 font-sans bg-white">
+      {/* Top Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-neutral-200 pb-5">
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-[#211C17] sm:text-3xl">Categories</h1>
-          <p className="text-xs text-[#776E63] font-medium mt-0.5">Organize categories, product series, and catalogue hierarchy.</p>
+          <div className="flex items-center gap-2">
+            <h1 className="font-display text-2xl font-extrabold tracking-tight text-black sm:text-3xl">Categories</h1>
+            <Badge className="bg-black text-white font-mono text-[10px] uppercase">
+              {filteredCategories.length} Categories
+            </Badge>
+          </div>
+          <p className="text-xs text-neutral-500 font-medium mt-0.5">Manage store product lines, specifications templates, and series.</p>
         </div>
-        <Button asChild size="sm" className="h-10 rounded-xl bg-[#211C17] hover:bg-[#3D332A] text-white font-medium text-xs shadow-md shadow-[#211C17]/15 px-4 flex items-center gap-2">
+        <Button asChild size="sm" className="h-9 rounded-lg bg-black hover:bg-neutral-800 text-white font-semibold text-xs shadow-sm px-4">
           <Link to="/admin/categories/new">
-            <Plus className="h-4 w-4 text-[#EADFCE]" /> Add Category
+            <Plus className="mr-1.5 h-4 w-4 text-white" /> Add New Category
           </Link>
         </Button>
       </div>
 
-      {/* Main Container Card */}
-      <div className="rounded-2xl border border-[#E5E2DC] bg-white shadow-xs overflow-hidden p-6 space-y-6">
-        
-        {/* Filter Controls */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex items-center w-full max-w-sm">
-            <Search className="absolute left-3.5 h-4 w-4 text-[#776E63] pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search Categories..."
+      {/* Filter Bar */}
+      <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-xs">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-black" />
+            <Input
+              placeholder="Search category title or slug..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-10 w-full rounded-xl bg-[#FAF8F5] border border-[#E5E2DC] pl-10 pr-4 text-xs text-[#211C17] placeholder-[#776E63] focus:outline-none focus:border-[#8B7D6B] focus:ring-2 focus:ring-[#8B7D6B]/20 transition-all"
+              className="pl-9 h-9 text-xs rounded-lg border-neutral-200 bg-neutral-50 text-black placeholder-neutral-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
             />
           </div>
-          
           <div className="flex items-center gap-2">
-            {(["all", "active", "hidden"] as const).map((status) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={cn(
-                  "px-4 py-2 text-xs font-semibold rounded-lg capitalize transition-all",
-                  statusFilter === status
-                    ? "bg-[#211C17] text-white shadow-sm"
-                    : "text-[#776E63] hover:text-[#211C17] hover:bg-[#FAF8F5]"
-                )}
-              >
-                {status}
-              </button>
-            ))}
+            <Button
+              variant={statusFilter === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setStatusFilter("all")}
+              className={cn("h-8 rounded-lg text-xs font-semibold", statusFilter === "all" ? "bg-black text-white" : "border-neutral-200 text-black")}
+            >
+              All
+            </Button>
+            <Button
+              variant={statusFilter === "active" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setStatusFilter("active")}
+              className={cn("h-8 rounded-lg text-xs font-semibold", statusFilter === "active" ? "bg-black text-white" : "border-neutral-200 text-black")}
+            >
+              Active
+            </Button>
+            <Button
+              variant={statusFilter === "hidden" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setStatusFilter("hidden")}
+              className={cn("h-8 rounded-lg text-xs font-semibold", statusFilter === "hidden" ? "bg-black text-white" : "border-neutral-200 text-black")}
+            >
+              Hidden
+            </Button>
           </div>
         </div>
+      </div>
 
-        {/* Category Table */}
-        <div className="rounded-xl border border-[#E5E2DC] overflow-hidden bg-white">
-          <Table>
-            <TableHeader className="bg-[#FAF8F5]">
-              <TableRow className="border-b border-[#E5E2DC] hover:bg-[#FAF8F5]">
-                <TableHead className="w-16 text-center">Image</TableHead>
-                <TableHead className="font-semibold text-[#5B554C] text-xs">Category Name</TableHead>
-                <TableHead className="font-semibold text-[#5B554C] text-xs text-center">Series Count</TableHead>
-                <TableHead className="font-semibold text-[#5B554C] text-xs text-center">Products</TableHead>
-                <TableHead className="font-semibold text-[#5B554C] text-xs text-center">Status</TableHead>
-                <TableHead className="font-semibold text-[#5B554C] text-xs text-center">Display Order</TableHead>
-                <TableHead className="font-semibold text-[#5B554C] text-xs">Updated</TableHead>
-                <TableHead className="font-semibold text-[#5B554C] text-xs text-right">Actions</TableHead>
+      {/* Table */}
+      <div className="rounded-xl border border-neutral-200 bg-white shadow-xs overflow-hidden">
+        <Table>
+          <TableHeader className="bg-neutral-50 border-b border-neutral-200">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="w-[80px] font-bold text-black text-[11px] uppercase tracking-wider">Cover</TableHead>
+              <TableHead className="font-bold text-black text-[11px] uppercase tracking-wider">Category Name & Slug</TableHead>
+              <TableHead className="font-bold text-black text-[11px] uppercase tracking-wider">Templates & Filters</TableHead>
+              <TableHead className="w-[100px] font-bold text-black text-[11px] uppercase tracking-wider">Status</TableHead>
+              <TableHead className="w-[80px] font-bold text-black text-[11px] uppercase tracking-wider text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              [...Array(4)].map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-10 w-10 bg-neutral-100 rounded-lg" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-40 bg-neutral-100 rounded" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24 bg-neutral-100 rounded" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16 bg-neutral-100 rounded" /></TableCell>
+                  <TableCell><Skeleton className="h-8 w-8 bg-neutral-100 rounded ml-auto" /></TableCell>
+                </TableRow>
+              ))
+            ) : filteredCategories.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="h-40 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <FolderTree className="h-8 w-8 text-black opacity-30" />
+                    <p className="text-xs font-bold text-black">No categories found</p>
+                  </div>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <TableRow key={i} className="border-b border-[#E5E2DC]/60">
-                    <TableCell colSpan={8} className="py-4 px-6">
-                      <Skeleton className="h-10 w-full bg-[#FAF8F5] rounded-lg" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : filteredCategories.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-32 text-center text-xs text-[#776E63] font-medium">
-                    {searchTerm || statusFilter !== "all" ? "No matching categories found." : "No categories created yet."}
+            ) : (
+              filteredCategories.map((cat) => (
+                <TableRow key={cat.id} className="hover:bg-neutral-50/80 transition-colors border-b border-neutral-100">
+                  <TableCell>
+                    <div className="h-10 w-10 overflow-hidden rounded-lg bg-neutral-100 border border-neutral-200 flex items-center justify-center">
+                      {cat.coverImage?.url ? (
+                        <img src={cat.coverImage.url} alt={cat.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <FolderTree className="h-5 w-5 text-black" />
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <Link to="/admin/categories/$id" params={{ id: cat.id }} className="font-bold text-xs text-black hover:underline">
+                        {cat.name}
+                      </Link>
+                      <p className="font-mono text-[10px] text-neutral-500 mt-0.5">/{cat.slug}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1.5 text-[10px] font-mono">
+                      <span className="bg-neutral-100 text-black border border-neutral-200 px-2 py-0.5 rounded font-bold">
+                        Specs: {cat.specificationTemplate?.length || 0}
+                      </span>
+                      <span className="bg-neutral-100 text-black border border-neutral-200 px-2 py-0.5 rounded font-bold">
+                        Filters: {cat.filterConfig?.length || 0}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <button onClick={() => handleToggleStatus(cat)} className="cursor-pointer">
+                      <Badge variant={cat.status === "active" ? "default" : "secondary"} className={cn(
+                        "font-mono text-[9px] uppercase tracking-wider",
+                        cat.status === "active" ? "bg-black text-white" : "bg-neutral-100 text-neutral-600 border border-neutral-200"
+                      )}>
+                        {cat.status}
+                      </Badge>
+                    </button>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-neutral-100">
+                          <MoreHorizontal className="h-4 w-4 text-black" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-white border-neutral-200 rounded-lg text-xs w-44">
+                        <DropdownMenuLabel className="font-bold text-black text-[10px] uppercase">Category Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator className="bg-neutral-100" />
+                        <DropdownMenuItem asChild className="hover:bg-neutral-100 font-semibold cursor-pointer">
+                          <Link to="/admin/categories/$id" params={{ id: cat.id }}>
+                            <Edit2 className="mr-2 h-3.5 w-3.5 text-black" /> Edit Category
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator className="bg-neutral-100" />
+                        <DropdownMenuItem
+                          onClick={() => handleDelete(cat.id, cat.name)}
+                          className="text-red-600 hover:bg-red-50 font-semibold cursor-pointer"
+                        >
+                          <Trash2 className="mr-2 h-3.5 w-3.5 text-red-600" /> Delete Category
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ) : (
-                filteredCategories.map((cat) => (
-                  <TableRow key={cat.id} className="border-b border-[#E5E2DC]/60 hover:bg-[#FAF8F5] transition-colors text-xs text-[#211C17]">
-                    <TableCell className="text-center">
-                      <div className="mx-auto flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#E5E2DC] bg-[#FAF8F5]">
-                        {cat.coverImage?.url ? (
-                          <img src={cat.coverImage.url} alt={cat.name} className="h-full w-full object-cover" />
-                        ) : (
-                          <FolderTree className="h-5 w-5 text-[#8B7D6B]/50" />
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium text-[#211C17] py-3.5">
-                      <div className="flex flex-col">
-                        <Link to="/admin/categories/$id" params={{ id: cat.id }} className="font-semibold text-[#211C17] hover:text-[#8B7D6B] transition-colors">
-                          {cat.name}
-                        </Link>
-                        <span className="text-[10px] text-[#776E63] font-mono">/{cat.slug}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center font-bold text-[#211C17]">{cat.seriesCount || 0}</TableCell>
-                    <TableCell className="text-center font-bold text-[#211C17]">{cat.productCount || 0}</TableCell>
-                    <TableCell className="text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleStatus(cat)}
-                        className={cn(
-                          "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-                          cat.status === "active" ? "bg-[#211C17]" : "bg-[#E5E2DC]"
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
-                            cat.status === "active" ? "translate-x-4" : "translate-x-0"
-                          )}
-                        />
-                      </button>
-                    </TableCell>
-                    <TableCell className="text-center font-mono font-semibold text-[#211C17]">{cat.order}</TableCell>
-                    <TableCell className="text-[#776E63] font-mono text-[11px]">{formatDate(cat.updatedAt)}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-[#776E63] hover:text-[#211C17] rounded-lg">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44 rounded-xl bg-white border-[#E5E2DC]">
-                          <DropdownMenuLabel className="text-[10px] uppercase font-bold text-[#776E63]">Actions</DropdownMenuLabel>
-                          <DropdownMenuItem asChild className="text-xs cursor-pointer">
-                            <Link to="/admin/categories/$id" params={{ id: cat.id }}>
-                              <Edit2 className="mr-2 h-3.5 w-3.5 text-[#776E63]" /> Edit Category
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDuplicate(cat)} className="text-xs cursor-pointer">
-                            <Copy className="mr-2 h-3.5 w-3.5 text-[#776E63]" /> Duplicate
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator className="bg-[#E5E2DC]" />
-                          <DropdownMenuItem onClick={() => handleDelete(cat.id, cat.name)} className="text-xs text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer">
-                            <Trash2 className="mr-2 h-3.5 w-3.5 text-red-500" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
