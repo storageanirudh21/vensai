@@ -55,7 +55,6 @@ export function QuickQueryModal() {
 
     const formData = new FormData(e.currentTarget);
     const name = formData.get("name") as string;
-    const email = formData.get("email") as string;
     const mobile = formData.get("mobile") as string;
     const city = formData.get("city") as string;
     const productLabel = formData.get("product") as string;
@@ -74,7 +73,7 @@ export function QuickQueryModal() {
         customer: {
           name,
           phone: mobile,
-          email
+          email: ""
         },
         message: `Inquiry from ${city}, ${selectedState}. Details: Interested in ${productLabel}`
       });
@@ -108,17 +107,6 @@ export function QuickQueryModal() {
           <div className="grid gap-1.5">
             <Label htmlFor="qq-name" className="text-xs font-semibold text-[#121212]">Full name</Label>
             <Input id="qq-name" name="name" required className="rounded-xl border-[#D8D4C9] bg-white" placeholder="Enter your full name" />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="qq-email" className="text-xs font-semibold text-[#121212]">Email</Label>
-            <Input
-              id="qq-email"
-              name="email"
-              type="email"
-              required
-              className="rounded-xl border-[#D8D4C9] bg-white"
-              placeholder="Enter your e-mail id"
-            />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="qq-mobile" className="text-xs font-semibold text-[#121212]">Mobile number</Label>

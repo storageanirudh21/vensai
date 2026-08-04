@@ -164,7 +164,7 @@ export interface Enquiry {
   customer: {
     name: string;
     phone: string;
-    email: string;
+    email?: string;
   };
   message: string;
   status: EnquiryStatus;
@@ -181,7 +181,7 @@ export interface SiteVisit {
   productName: string | null;
   customerName: string;
   phone: string;
-  email: string;
+  email?: string;
   preferredDate: string;
   preferredTime: string;
   projectType: string;

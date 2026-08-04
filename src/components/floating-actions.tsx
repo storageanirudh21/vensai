@@ -1,11 +1,36 @@
+import { useState, useEffect } from "react";
 import { MessageSquareText } from "lucide-react";
 import { useLead } from "@/lib/lead";
+import { cn } from "@/lib/utils";
 
 export function FloatingActions() {
   const { openQuery } = useLead();
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      // Only display floating actions after scrolling past the hero section (~350px)
+      if (window.scrollY > 350) {
+        setShow(true);
+      } else {
+        setShow(false);
+      }
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 items-end">
+    <div
+      className={cn(
+        "fixed bottom-6 right-6 z-50 flex flex-col gap-3 items-end transition-all duration-300 transform",
+        show
+          ? "opacity-100 translate-y-0 pointer-events-auto"
+          : "opacity-0 translate-y-6 pointer-events-none"
+      )}
+    >
       {/* Quick Enquiry Floating Button */}
       <div className="group relative flex items-center">
         <span className="pointer-events-none absolute right-14 whitespace-nowrap rounded-md bg-[#28251f] px-3 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 translate-x-1">
@@ -27,7 +52,7 @@ export function FloatingActions() {
           Chat on WhatsApp
         </span>
         <a
-          href="https://wa.me/919059099792?text=Hello%20Vensai%20Global%2C%20I%20would%20like%20to%20enquire%20about%20your%20architectural%20surfaces."
+          href="https://wa.me/919059099792?text=Hello%20Vensai%20Global%2C%20I%20would%20like%20to%20enquire%20about%20your%20products."
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Chat on WhatsApp"

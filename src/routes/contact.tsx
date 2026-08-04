@@ -118,22 +118,6 @@ function ContactPage() {
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <label htmlFor="contact-email" className="text-xs font-semibold text-[#29241e]">
-                      Email Address *
-                    </label>
-                    <input
-                      id="contact-email"
-                      name="email"
-                      type="email"
-                      required
-                      placeholder="you@studio.com"
-                      className="rounded-xl border border-[#d5cdc1] bg-[#fcfaf5] px-4 py-3 text-xs text-[#29241e] placeholder-[#a09788] focus:border-[#755c3b] focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <div className="grid gap-1.5">
                     <label htmlFor="contact-phone" className="text-xs font-semibold text-[#29241e]">
                       Mobile / Phone *
                     </label>
@@ -146,17 +130,18 @@ function ContactPage() {
                       className="rounded-xl border border-[#d5cdc1] bg-[#fcfaf5] px-4 py-3 text-xs text-[#29241e] placeholder-[#a09788] focus:border-[#755c3b] focus:outline-none"
                     />
                   </div>
-                  <div className="grid gap-1.5">
-                    <label htmlFor="contact-location" className="text-xs font-semibold text-[#29241e]">
-                      Project Location / City
-                    </label>
-                    <input
-                      id="contact-location"
-                      name="location"
-                      placeholder="e.g. Chennai, Bengaluru"
-                      className="rounded-xl border border-[#d5cdc1] bg-[#fcfaf5] px-4 py-3 text-xs text-[#29241e] placeholder-[#a09788] focus:border-[#755c3b] focus:outline-none"
-                    />
-                  </div>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <label htmlFor="contact-location" className="text-xs font-semibold text-[#29241e]">
+                    Project Location / City
+                  </label>
+                  <input
+                    id="contact-location"
+                    name="location"
+                    placeholder="e.g. Chennai, Bengaluru"
+                    className="rounded-xl border border-[#d5cdc1] bg-[#fcfaf5] px-4 py-3 text-xs text-[#29241e] placeholder-[#a09788] focus:border-[#755c3b] focus:outline-none"
+                  />
                 </div>
 
                 <div className="grid gap-1.5">

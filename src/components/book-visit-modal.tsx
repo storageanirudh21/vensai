@@ -36,7 +36,6 @@ export function BookVisitModal() {
   // Field states
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
   const [date, setDate] = useState("");
   const [showroom, setShowroom] = useState("");
   const [timeSlot, setTimeSlot] = useState("");
@@ -45,7 +44,7 @@ export function BookVisitModal() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!name || !phone || !email || !date || !showroom || !timeSlot) {
+    if (!name || !phone || !date || !showroom || !timeSlot) {
       toast.error("Please fill in all required fields.");
       return;
     }
@@ -58,7 +57,7 @@ export function BookVisitModal() {
         productName: visitProduct || null,
         customerName: name,
         phone,
-        email,
+        email: "",
         preferredDate: date,
         preferredTime: timeSlot,
         projectType: projectType || "Not Specified",
@@ -73,7 +72,6 @@ export function BookVisitModal() {
       // Clear states & close
       setName("");
       setPhone("");
-      setEmail("");
       setDate("");
       setShowroom("");
       setTimeSlot("");
@@ -116,11 +114,6 @@ export function BookVisitModal() {
               <Label htmlFor="visit-phone" className="text-xs font-semibold text-[#121212]">Phone Number *</Label>
               <Input id="visit-phone" required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" className="rounded-xl border-[#D8D4C9] bg-white" />
             </div>
-          </div>
-
-          <div className="grid gap-1.5">
-            <Label htmlFor="visit-email" className="text-xs font-semibold text-[#121212]">Email Address *</Label>
-            <Input id="visit-email" required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@domain.com" className="rounded-xl border-[#D8D4C9] bg-white" />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
