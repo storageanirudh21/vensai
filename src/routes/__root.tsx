@@ -109,17 +109,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  return (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  );
+  return <div className="min-h-screen bg-[#f3efe7] text-[#28251f]">{children}</div>;
 }
 
 function RootComponent() {
