@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { useState, useEffect } from "react";
-import { ArrowLeft, Check, Minus, Plus, ZoomIn, ZoomOut, FileText, Loader2, RotateCcw, Maximize2, X } from "lucide-react";
+import { ArrowLeft, Check, Minus, Plus, ZoomIn, ZoomOut, FileText, Loader2, RotateCcw, Maximize2, X, Download, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ProductCard } from "@/components/product-card";
@@ -370,19 +370,30 @@ function ProductDetail() {
 
           {/* Brochure Display Section */}
           {product.brochure && (
-            <div className="mt-8 rounded-lg border border-[#E5E2DC] bg-[#FAF8F5]/50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="mt-8 rounded-xl border border-[#E5E2DC] bg-[#FAF8F5]/80 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
-                <FileText className="h-8 w-8 text-[#8B7D6B] shrink-0" />
+                <div className="grid h-10 w-10 place-items-center rounded-lg bg-[#f0ece5] text-[#5b4937] shrink-0">
+                  <FileText className="h-5 w-5" />
+                </div>
                 <div className="min-w-0 flex-1">
                   <span className="text-xs font-semibold block text-neutral-800 truncate">{product.brochure.title}</span>
-                  <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider block">Official Catalogue PDF</span>
+                  <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider block">Official Product Specification PDF</span>
                 </div>
               </div>
-              <Button size="sm" variant="outline" asChild className="rounded-sm text-xs font-mono border-[#E5E2DC] bg-white w-full sm:w-auto shrink-0">
-                <a href={product.brochure.fileUrl} target="_blank" rel="noopener noreferrer">
-                  Download
-                </a>
-              </Button>
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                <Button size="sm" variant="outline" asChild className="rounded-full text-[0.68rem] font-semibold uppercase border-[#d5cdc1] bg-white text-[#5b4937] hover:bg-[#5b4937] hover:text-white transition-all cursor-pointer">
+                  <a href={product.brochure.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5">
+                    <ExternalLink className="h-3 w-3" />
+                    <span>View</span>
+                  </a>
+                </Button>
+                <Button size="sm" asChild className="rounded-full text-[0.68rem] font-semibold uppercase bg-[#181512] text-white hover:bg-[#5b4937] transition-all shadow-xs cursor-pointer">
+                  <a href={product.brochure.fileUrl} download target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5">
+                    <Download className="h-3 w-3" />
+                    <span>Download</span>
+                  </a>
+                </Button>
+              </div>
             </div>
           )}
 

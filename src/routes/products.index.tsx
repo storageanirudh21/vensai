@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence } from "motion/react";
 import { useState, useEffect } from "react";
-import { SlidersHorizontal, ChevronDown, X, Filter, Check } from "lucide-react";
+import { SlidersHorizontal, ChevronDown, X, Filter, Check, Search } from "lucide-react";
 import { Reveal } from "@/components/reveal";
 import { ProductCard } from "@/components/product-card";
 import { collections as localCollections, products as localProducts } from "@/lib/products";
@@ -60,6 +60,7 @@ function ProductsPage() {
   const [dbSeries, setDbSeries] = useState<Series[]>([]);
   const [loading, setLoading] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     let unsubCats: () => void = () => {};
@@ -110,10 +111,21 @@ function ProductsPage() {
   // Decide source
   const usingDb = dbProducts.length > 0;
   
-  // Prepare products list
+  // Prepare products list with Search & Category & Series filtering
   const list = usingDb
     ? dbProducts
         .filter((p) => {
+          // Search query match
+          if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase().trim();
+            const nameMatch = p.name?.toLowerCase().includes(q);
+            const catMatch = p.categoryName?.toLowerCase().includes(q);
+            const seriesMatch = p.seriesName?.toLowerCase().includes(q);
+            const descMatch = p.description?.toLowerCase().includes(q);
+            const shortMatch = p.shortDescription?.toLowerCase().includes(q);
+            if (!nameMatch && !catMatch && !seriesMatch && !descMatch && !shortMatch) return false;
+          }
+
           // Category match
           if (collectionFilter !== "All") {
             const matchesName = p.categoryName?.toLowerCase() === collectionFilter.toLowerCase();
@@ -144,7 +156,20 @@ function ProductsPage() {
           finishes: p.finishes?.map((f) => f.name) || [],
           badge: p.featured ? "Featured" : undefined,
         }))
-    : (collectionFilter === "All" ? localProducts : localProducts.filter((p) => p.collection === collectionFilter));
+    : (localProducts
+        .filter((p) => {
+          if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase().trim();
+            const nameMatch = p.name?.toLowerCase().includes(q);
+            const colMatch = p.collection?.toLowerCase().includes(q);
+            const blurbMatch = p.blurb?.toLowerCase().includes(q);
+            if (!nameMatch && !colMatch && !blurbMatch) return false;
+          }
+          if (collectionFilter !== "All") {
+            if (p.collection !== collectionFilter) return false;
+          }
+          return true;
+        }));
 
   return (
     <div className="mx-auto max-w-7xl px-5 py-16 md:px-8 md:py-24 min-h-[85vh]">
@@ -155,6 +180,30 @@ function ProductsPage() {
           Architectural surface families, engineered for Indian interiors. Select a category and series to specify with confidence.
         </p>
       </Reveal>
+
+      {/* Product Search Bar */}
+      <div className="mt-8 flex items-center justify-between gap-4">
+        <div className="relative w-full max-w-md">
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search products by name, collection or finish..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-full border border-[#E5E2DC] bg-[#FAF8F5] py-2.5 pl-9 pr-8 text-xs placeholder:text-muted-foreground focus:border-[#181512] focus:outline-hidden transition-colors shadow-2xs"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-black cursor-pointer"
+              aria-label="Clear search"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
       {/* Mobile Filter Button (Visible on Mobile) */}
       <div className="mt-8 flex items-center justify-between gap-3 md:hidden">
         <button
