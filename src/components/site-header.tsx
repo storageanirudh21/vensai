@@ -40,11 +40,41 @@ export function SiteHeader() {
       )}
     >
       <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-4">
-        {/* Left Side: Menu Trigger & Nav */}
+        {/* Left Side: Desktop/Tablet Nav & Mobile Menu Button */}
         <div className="flex items-center gap-6">
+          {/* Desktop & Tablet Navigation Links (Visible on md and larger) */}
+          <nav className="hidden md:flex items-center gap-6">
+            {nav.map((item) => {
+              const isActive = pathname === item.to || (item.to !== "/" && pathname.startsWith(item.to));
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={cn(
+                    "text-[0.7rem] font-semibold tracking-[0.18em] uppercase transition-colors hover:opacity-80",
+                    isActive
+                      ? overHero
+                        ? "text-white underline underline-offset-4"
+                        : "text-[#5e492e] font-bold"
+                      : overHero
+                        ? "text-white/80"
+                        : "text-[#292721]/80"
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Mobile Menu Button (Only visible on mobile view < md) */}
           <button
+            type="button"
             onClick={() => setMenu((v) => !v)}
-            className={cn("flex items-center gap-2 text-[0.68rem] font-semibold tracking-[0.18em] uppercase hover:opacity-75 transition-opacity cursor-pointer", overHero ? "text-white" : "text-[#292721]")}
+            className={cn(
+              "flex md:hidden items-center gap-2 text-[0.68rem] font-semibold tracking-[0.18em] uppercase hover:opacity-75 transition-opacity cursor-pointer",
+              overHero ? "text-white" : "text-[#292721]"
+            )}
           >
             {menu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             <span>Menu</span>
@@ -59,8 +89,14 @@ export function SiteHeader() {
         {/* Right Side: Quick Query & Consultation */}
         <div className="flex items-center justify-end gap-3">
           <button
+            type="button"
             onClick={() => openQuery()}
-            className={cn("hidden md:flex items-center gap-2 border px-4 py-2 text-[0.65rem] font-semibold tracking-[0.16em] uppercase transition-all", overHero ? "border-white/50 text-white hover:bg-white hover:text-[#28251f]" : "border-[#755c3b] text-[#5e492e] hover:bg-[#5e492e] hover:text-white")}
+            className={cn(
+              "hidden md:flex items-center gap-2 border px-4 py-2 text-[0.65rem] font-semibold tracking-[0.16em] uppercase transition-all cursor-pointer",
+              overHero
+                ? "border-white/50 text-white hover:bg-white hover:text-[#28251f]"
+                : "border-[#755c3b] text-[#5e492e] hover:bg-[#5e492e] hover:text-white"
+            )}
           >
             <MessageSquareText className="h-3.5 w-3.5" />
             <span>Consultation</span>
@@ -68,10 +104,10 @@ export function SiteHeader() {
         </div>
       </div>
 
-      {/* Mobile & Bottom Sheet Navigation Modal */}
+      {/* Mobile Only Bottom Sheet Navigation Modal (< md) */}
       <AnimatePresence>
         {menu && (
-          <>
+          <div className="md:hidden">
             {/* Dark Backdrop Overlay */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -88,7 +124,7 @@ export function SiteHeader() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 320 }}
-              className="fixed inset-x-0 bottom-0 z-50 max-h-[90vh] overflow-y-auto rounded-t-[32px] bg-white px-6 pt-6 pb-8 text-[#181512] shadow-2xl sm:max-w-md sm:mx-auto sm:mb-4 sm:rounded-[32px]"
+              className="fixed inset-x-0 bottom-0 z-50 max-h-[90vh] overflow-y-auto rounded-t-[32px] bg-white px-6 pt-6 pb-8 text-[#181512] shadow-2xl"
             >
               {/* Sheet Header */}
               <div className="flex items-center justify-between border-b border-neutral-100 pb-5">
@@ -141,7 +177,7 @@ export function SiteHeader() {
                 </button>
               </div>
             </motion.div>
-          </>
+          </div>
         )}
       </AnimatePresence>
     </header>
