@@ -68,29 +68,80 @@ export function SiteHeader() {
         </div>
       </div>
 
-      {/* Mobile & Drawer Navigation */}
+      {/* Mobile & Bottom Sheet Navigation Modal */}
       <AnimatePresence>
         {menu && (
-          <motion.nav
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden border-t border-[#d8d0c2] bg-[#f3efe7] mt-4 pt-2 pb-4"
-          >
-            <div className="flex flex-col max-w-7xl mx-auto px-4">
-              {nav.map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
+          <>
+            {/* Dark Backdrop Overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              onClick={() => setMenu(false)}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs"
+            />
+
+            {/* Bottom Sheet Card */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 320 }}
+              className="fixed inset-x-0 bottom-0 z-50 max-h-[90vh] overflow-y-auto rounded-t-[32px] bg-white px-6 pt-6 pb-8 text-[#181512] shadow-2xl sm:max-w-md sm:mx-auto sm:mb-4 sm:rounded-[32px]"
+            >
+              {/* Sheet Header */}
+              <div className="flex items-center justify-between border-b border-neutral-100 pb-5">
+                <span className="font-sans text-sm font-extrabold tracking-wider uppercase text-[#181512]">
+                  VENSAI GLOBAL
+                </span>
+                <button
+                  type="button"
                   onClick={() => setMenu(false)}
-                  className="border-b border-[#d8d0c2] py-3.5 font-display text-3xl font-semibold uppercase tracking-wide text-[#121212] hover:pl-2 transition-all"
+                  className="grid h-9 w-9 place-items-center rounded-full bg-neutral-100 text-neutral-600 transition-colors hover:bg-neutral-200 active:scale-95 cursor-pointer"
+                  aria-label="Close Menu"
                 >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          </motion.nav>
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Menu Links List */}
+              <div className="flex flex-col pt-2">
+                {nav.map((item) => {
+                  const isActive = pathname === item.to || (item.to !== "/" && pathname.startsWith(item.to));
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={() => setMenu(false)}
+                      className={cn(
+                        "border-b border-neutral-100 py-4 font-sans text-base font-semibold transition-colors",
+                        isActive
+                          ? "text-[#E05326]"
+                          : "text-[#28251f] hover:text-[#E05326]"
+                      )}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {/* Bottom Action Button */}
+              <div className="mt-8">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenu(false);
+                    openQuery();
+                  }}
+                  className="w-full rounded-full bg-[#0F172A] py-4 text-center font-sans text-sm font-semibold text-white transition-all hover:bg-black active:scale-[0.98] shadow-lg cursor-pointer"
+                >
+                  Book Consultation
+                </button>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </header>
