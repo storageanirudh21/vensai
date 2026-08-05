@@ -216,3 +216,39 @@
     transform: scale(1.06);
   }
 }
+
+/* Remove button hover color, background, and border changes in Admin Panel */
+.admin-panel button,
+.admin-panel [role="button"],
+.admin-panel a[role="button"] {
+  transition: none !important;
+}
+
+.admin-panel button:hover,
+.admin-panel [role="button"]:hover,
+.admin-panel a[role="button"]:hover,
+.admin-panel button[class*="hover:"]:hover,
+.admin-panel [role="button"][class*="hover:"]:hover {
+  filter: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.admin-panel button.bg-black:hover,
+.admin-panel button.bg-\[\#211C17\]:hover,
+.admin-panel [role="button"].bg-black:hover {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+.admin-panel button.bg-neutral-800:hover {
+  background-color: #262626 !important;
+  color: #ffffff !important;
+}
+
+.admin-panel button.border-neutral-200:hover,
+.admin-panel button.border-\[\#E5E2DC\]:hover {
+  background-color: transparent !important;
+}
+
+

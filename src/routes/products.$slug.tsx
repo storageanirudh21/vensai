@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { useState, useEffect } from "react";
-import { ArrowLeft, Check, Minus, Plus, ZoomIn, ZoomOut, FileText, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Minus, Plus, ZoomIn, ZoomOut, FileText, Loader2, RotateCcw, Maximize2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ProductCard } from "@/components/product-card";
@@ -48,24 +48,45 @@ function ProductDetail() {
   const { slug } = Route.useParams();
   const { openQuery, openVisit } = useLead();
 
-  const [loading, setLoading] = useState(true);
-  const [product, setProduct] = useState<any>(null);
-  const [finish, setFinish] = useState("");
+  const localInitial = getLocalProduct(slug);
+  const initialMapped = localInitial
+    ? {
+        slug: localInitial.slug,
+        name: localInitial.name,
+        sku: `VNS-${localInitial.slug.slice(0, 4).toUpperCase()}`,
+        collection: localInitial.collection,
+        seriesName: "",
+        description: localInitial.description,
+        specs: localInitial.specs,
+        finishes: localInitial.finishes,
+        image: localInitial.image,
+        images: [localInitial.image, hero2, hero3],
+        unit: localInitial.unit,
+        brochure: null,
+        badge: localInitial.badge,
+      }
+    : null;
+
+  const [loading, setLoading] = useState(!initialMapped);
+  const [product, setProduct] = useState<any>(initialMapped);
+  const [finish, setFinish] = useState(initialMapped?.finishes?.[0] || "");
   const [qty, setQty] = useState(20);
   const [activeImage, setActiveImage] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   useEffect(() => {
     async function fetchProduct() {
       try {
-        setLoading(true);
-        // 1. Check Firestore
+        // Check Firestore
         const dbProd = await getProductBySlug(slug);
         if (dbProd) {
           const mapped = {
             slug: dbProd.slug,
             name: dbProd.name,
+            sku: dbProd.sku,
             collection: dbProd.categoryName,
+            seriesName: dbProd.seriesName,
             description: dbProd.description,
             specs: dbProd.specifications?.map(s => ({ label: s.label, value: `${s.value} ${s.unit}`.trim() })) || [],
             finishes: dbProd.finishes?.map(f => f.name) || [],
@@ -94,7 +115,9 @@ function ProductDetail() {
         const mapped = {
           slug: local.slug,
           name: local.name,
+          sku: `VNS-${local.slug.slice(0, 4).toUpperCase()}`,
           collection: local.collection,
+          seriesName: "",
           description: local.description,
           specs: local.specs,
           finishes: local.finishes,
@@ -117,7 +140,7 @@ function ProductDetail() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-7xl px-5 py-24 md:px-8">
+      <div className="mx-auto max-w-7xl px-5 py-24 md:px-8 min-h-[85vh]">
         <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-7 space-y-4">
             <Skeleton className="aspect-square w-full rounded-2xl bg-neutral-100" />
@@ -141,7 +164,7 @@ function ProductDetail() {
 
   if (!product) {
     return (
-      <div className="mx-auto max-w-md px-5 py-32 text-center">
+      <div className="mx-auto max-w-md px-5 py-32 text-center min-h-[85vh]">
         <h1 className="font-display text-4xl">Product not found</h1>
         <Button asChild variant="outline" className="mt-6 rounded-sm">
           <Link to="/products">Back to catalogue</Link>
@@ -153,7 +176,7 @@ function ProductDetail() {
   const related = localProducts.filter((p) => p.slug !== product.slug).slice(0, 3);
 
   return (
-    <div className="mx-auto max-w-7xl px-5 py-10 md:px-8 md:py-16">
+    <div className="mx-auto max-w-7xl px-5 py-10 md:px-8 md:py-16 min-h-[85vh]">
       <Link
         to="/products"
         className="inline-flex items-center gap-2 text-xs tracking-[0.16em] text-muted-foreground uppercase transition-colors hover:text-foreground"
@@ -163,33 +186,85 @@ function ProductDetail() {
 
       <div className="mt-8 grid gap-12 lg:grid-cols-12 lg:gap-16 items-start">
         <div className="lg:col-span-7 flex flex-col gap-4">
-          <div className="relative aspect-[4/5] md:aspect-square w-full overflow-hidden rounded-2xl bg-secondary group">
+          <div className="relative aspect-[4/5] md:aspect-square w-full overflow-hidden rounded-2xl bg-secondary group touch-none">
             <motion.img
               key={`${finish}-${activeImage}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1, scale: zoomLevel }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
               src={product.images[activeImage] || product.image}
               alt={`${product.name} detail view`}
-              className="h-full w-full object-cover origin-center cursor-move"
+              className={cn(
+                "h-full w-full object-cover origin-center transition-transform",
+                zoomLevel > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in"
+              )}
               drag={zoomLevel > 1}
-              dragConstraints={{ left: -100 * zoomLevel, right: 100 * zoomLevel, top: -100 * zoomLevel, bottom: 100 * zoomLevel }}
+              dragConstraints={{
+                left: -180 * (zoomLevel - 1),
+                right: 180 * (zoomLevel - 1),
+                top: -180 * (zoomLevel - 1),
+                bottom: 180 * (zoomLevel - 1),
+              }}
+              dragElastic={0.05}
+              onClick={() => {
+                if (zoomLevel === 1) {
+                  setZoomLevel(2);
+                }
+              }}
             />
             
-            <div className="absolute bottom-4 right-4 flex gap-2 bg-white/80 backdrop-blur-md p-1.5 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Zoom & Lightbox Controls Bar */}
+            <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1 bg-white/95 backdrop-blur-md p-1.5 rounded-full shadow-md border border-neutral-200/80">
               <button 
-                onClick={() => setZoomLevel(prev => Math.max(prev - 0.5, 1))} 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomLevel(prev => Math.max(prev - 0.5, 1));
+                }} 
                 disabled={zoomLevel <= 1}
-                className="p-2 hover:bg-white rounded-full transition-colors disabled:opacity-50 text-[#121212]"
+                title="Zoom out"
+                className="p-2 hover:bg-neutral-100 rounded-full transition-colors disabled:opacity-30 text-[#121212]"
               >
                 <ZoomOut className="w-4 h-4" />
               </button>
+
+              <span className="px-1.5 font-mono text-[10px] font-bold text-neutral-700 min-w-[3rem] text-center select-none">
+                {Math.round(zoomLevel * 100)}%
+              </span>
+
               <button 
-                onClick={() => setZoomLevel(prev => Math.min(prev + 0.5, 3))}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomLevel(prev => Math.min(prev + 0.5, 3));
+                }}
                 disabled={zoomLevel >= 3}
-                className="p-2 hover:bg-white rounded-full transition-colors disabled:opacity-50 text-[#121212]"
+                title="Zoom in"
+                className="p-2 hover:bg-neutral-100 rounded-full transition-colors disabled:opacity-30 text-[#121212]"
               >
                 <ZoomIn className="w-4 h-4" />
+              </button>
+
+              {zoomLevel > 1 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setZoomLevel(1);
+                  }}
+                  title="Reset zoom"
+                  className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-600 border-l border-neutral-200 pl-2"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsLightboxOpen(true);
+                }}
+                title="Full screen view"
+                className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-600 border-l border-neutral-200 pl-2"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -214,11 +289,23 @@ function ProductDetail() {
         </div>
 
         <div className="lg:col-span-5 lg:sticky lg:top-28">
-          <p className="eyebrow">{product.collection}</p>
-          <h1 className="mt-3 font-display text-5xl leading-none md:text-6xl">{product.name}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="eyebrow">{product.collection}</span>
+          </div>
+          <h1 className="mt-3 font-display text-4xl leading-none sm:text-5xl md:text-6xl">{product.name}</h1>
           <p className="mt-5 leading-relaxed text-muted-foreground">{product.description}</p>
 
           <Separator className="my-8" />
+
+          {product.seriesName && (
+            <div className="mb-6">
+              <div className="inline-flex items-center rounded-md bg-[#f0e8de]/50 px-3 py-1.5 border border-[#5b4937]/10">
+                <span className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[#5b4937]/70 mr-2">Series - </span>
+                <span className="text-[0.65rem] text-[#5b4937]/30 mr-2">·</span>
+                <span className="text-[0.75rem] font-bold uppercase tracking-[0.1em] text-[#5b4937]">{product.seriesName}</span>
+              </div>
+            </div>
+          )}
 
           {product.finishes.length > 0 && (
             <>
@@ -263,30 +350,35 @@ function ProductDetail() {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-6 flex flex-col sm:flex-row gap-3 w-full">
             <Button
               size="lg"
-              className="rounded-sm"
+              className="flex-1 w-full sm:w-auto h-auto min-h-[2.75rem] py-3 px-4 text-xs font-semibold uppercase tracking-[0.1em] text-center whitespace-normal rounded-sm bg-[#5b4937] text-white hover:bg-[#3d3124] transition-colors shadow-xs"
               onClick={() => openQuery(`${product.name} — ${finish}, ~${qty} ${product.unit}`)}
             >
-              Enquire about this {product.collection.endsWith('s') ? product.collection.slice(0, -1).toLowerCase() : product.collection.toLowerCase()}
+              Enquire about this product
             </Button>
-            <Button size="lg" variant="outline" className="rounded-sm" onClick={() => openVisit(product.name)}>
+            <Button
+              size="lg"
+              variant="outline"
+              className="flex-1 w-full sm:w-auto h-auto min-h-[2.75rem] py-3 px-4 text-xs font-semibold uppercase tracking-[0.1em] text-center whitespace-normal rounded-sm border-[#d5cdc1] hover:border-black transition-colors"
+              onClick={() => openVisit(product.name)}
+            >
               Book a site visit
             </Button>
           </div>
 
           {/* Brochure Display Section */}
           {product.brochure && (
-            <div className="mt-8 rounded-lg border border-[#E5E2DC] bg-[#FAF8F5]/50 p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="mt-8 rounded-lg border border-[#E5E2DC] bg-[#FAF8F5]/50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <FileText className="h-8 w-8 text-[#8B7D6B] shrink-0" />
-                <div>
-                  <span className="text-xs font-semibold block text-neutral-800 truncate max-w-[180px]">{product.brochure.title}</span>
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs font-semibold block text-neutral-800 truncate">{product.brochure.title}</span>
                   <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider block">Official Catalogue PDF</span>
                 </div>
               </div>
-              <Button size="sm" variant="outline" asChild className="rounded-sm text-xs font-mono border-[#E5E2DC] bg-white">
+              <Button size="sm" variant="outline" asChild className="rounded-sm text-xs font-mono border-[#E5E2DC] bg-white w-full sm:w-auto shrink-0">
                 <a href={product.brochure.fileUrl} target="_blank" rel="noopener noreferrer">
                   Download
                 </a>
@@ -317,6 +409,28 @@ function ProductDetail() {
           ))}
         </div>
       </section>
+
+      {/* Lightbox Fullscreen Modal */}
+      {isLightboxOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/92 p-4 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setIsLightboxOpen(false)}
+        >
+          <button
+            onClick={() => setIsLightboxOpen(false)}
+            className="absolute top-6 right-6 z-50 rounded-full bg-white/20 p-3 text-white hover:bg-white/30 transition-colors"
+            title="Close"
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img
+            src={product.images[activeImage] || product.image}
+            alt={product.name}
+            className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

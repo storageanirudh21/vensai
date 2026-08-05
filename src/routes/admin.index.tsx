@@ -7,7 +7,8 @@ import {
   orderBy,
   limit,
   getDocs,
-  getCountFromServer
+  getCountFromServer,
+  onSnapshot
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Product, Enquiry, SiteVisit } from "@/types/catalogue";
@@ -50,79 +51,87 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadDashboardData() {
-      try {
-        setLoading(true);
+    setLoading(true);
 
-        const productsCol = collection(db, "products");
-        const categoriesCol = collection(db, "categories");
-        const seriesCol = collection(db, "series");
-        const enquiriesCol = collection(db, "enquiries");
-        const visitsCol = collection(db, "siteVisits");
+    const categoriesCol = collection(db, "categories");
+    const productsCol = collection(db, "products");
+    const seriesCol = collection(db, "series");
+    const enquiriesCol = collection(db, "enquiries");
+    const visitsCol = collection(db, "siteVisits");
 
-        const safeCount = async (q: any) => {
-          try {
-            const res = await getCountFromServer(q);
-            return res.data().count;
-          } catch (e) {
-            console.warn("Count query fallback:", e);
-            return 0;
-          }
-        };
+    const unsubCats = onSnapshot(categoriesCol, (snap) => {
+      setMetrics(prev => ({
+        totalProducts: prev?.totalProducts || 0,
+        publishedProducts: prev?.publishedProducts || 0,
+        totalCategories: snap.size,
+        totalSeries: prev?.totalSeries || 0,
+        newEnquiries: prev?.newEnquiries || 0,
+        pendingVisits: prev?.pendingVisits || 0
+      }));
+      setLoading(false);
+    });
 
-        const [
-          totalProducts,
-          publishedProducts,
-          totalCategories,
-          totalSeries,
-          newEnquiries,
-          pendingVisits
-        ] = await Promise.all([
-          safeCount(productsCol),
-          safeCount(query(productsCol, where("status", "==", "published"))),
-          safeCount(categoriesCol),
-          safeCount(seriesCol),
-          safeCount(query(enquiriesCol, where("status", "==", "new"))),
-          safeCount(query(visitsCol, where("status", "in", ["requested", "confirmed"])))
-        ]);
+    const unsubProds = onSnapshot(query(productsCol, orderBy("createdAt", "desc")), (snap) => {
+      const allProds = snap.docs.map(d => ({ id: d.id, ...d.data() }) as Product);
+      const pubCount = allProds.filter(p => p.status === "published").length;
+      setRecentProducts(allProds.slice(0, 5));
+      setMetrics(prev => ({
+        totalProducts: snap.size,
+        publishedProducts: pubCount,
+        totalCategories: prev?.totalCategories || 0,
+        totalSeries: prev?.totalSeries || 0,
+        newEnquiries: prev?.newEnquiries || 0,
+        pendingVisits: prev?.pendingVisits || 0
+      }));
+      setLoading(false);
+    });
 
-        setMetrics({
-          totalProducts,
-          publishedProducts,
-          totalCategories,
-          totalSeries,
-          newEnquiries,
-          pendingVisits
-        });
+    const unsubSeries = onSnapshot(seriesCol, (snap) => {
+      setMetrics(prev => ({
+        totalProducts: prev?.totalProducts || 0,
+        publishedProducts: prev?.publishedProducts || 0,
+        totalCategories: prev?.totalCategories || 0,
+        totalSeries: snap.size,
+        newEnquiries: prev?.newEnquiries || 0,
+        pendingVisits: prev?.pendingVisits || 0
+      }));
+    });
 
-        const safeFetchDocs = async <T,>(q: any): Promise<T[]> => {
-          try {
-            const snap = await getDocs(q);
-            return snap.docs.map(d => ({ id: d.id, ...(d.data() as object) }) as T);
-          } catch (e) {
-            console.warn("Doc fetch fallback:", e);
-            return [];
-          }
-        };
+    const unsubEnquiries = onSnapshot(query(enquiriesCol, orderBy("createdAt", "desc")), (snap) => {
+      const allEnq = snap.docs.map(d => ({ id: d.id, ...d.data() }) as Enquiry);
+      const newCount = allEnq.filter(e => e.status === "new").length;
+      setRecentEnquiries(allEnq.slice(0, 5));
+      setMetrics(prev => ({
+        totalProducts: prev?.totalProducts || 0,
+        publishedProducts: prev?.publishedProducts || 0,
+        totalCategories: prev?.totalCategories || 0,
+        totalSeries: prev?.totalSeries || 0,
+        newEnquiries: newCount,
+        pendingVisits: prev?.pendingVisits || 0
+      }));
+    });
 
-        const [enquiriesList, productsList, visitsList] = await Promise.all([
-          safeFetchDocs<Enquiry>(query(enquiriesCol, orderBy("createdAt", "desc"), limit(5))),
-          safeFetchDocs<Product>(query(productsCol, orderBy("createdAt", "desc"), limit(5))),
-          safeFetchDocs<SiteVisit>(query(visitsCol, where("status", "in", ["requested", "confirmed"]), orderBy("createdAt", "asc"), limit(5)))
-        ]);
+    const unsubVisits = onSnapshot(query(visitsCol, orderBy("createdAt", "asc")), (snap) => {
+      const allVisits = snap.docs.map(d => ({ id: d.id, ...d.data() }) as SiteVisit);
+      const pendingCount = allVisits.filter(v => v.status === "requested" || v.status === "confirmed").length;
+      setUpcomingVisits(allVisits.filter(v => v.status === "requested" || v.status === "confirmed").slice(0, 5));
+      setMetrics(prev => ({
+        totalProducts: prev?.totalProducts || 0,
+        publishedProducts: prev?.publishedProducts || 0,
+        totalCategories: prev?.totalCategories || 0,
+        totalSeries: prev?.totalSeries || 0,
+        newEnquiries: prev?.newEnquiries || 0,
+        pendingVisits: pendingCount
+      }));
+    });
 
-        setRecentEnquiries(enquiriesList);
-        setRecentProducts(productsList);
-        setUpcomingVisits(visitsList);
-
-      } catch (error) {
-        console.error("Error loading dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadDashboardData();
+    return () => {
+      unsubCats();
+      unsubProds();
+      unsubSeries();
+      unsubEnquiries();
+      unsubVisits();
+    };
   }, []);
 
   const formatDate = (timestamp: any) => {

@@ -52,16 +52,16 @@ function AdminUsersPage() {
 
   const handleRoleChange = async (uid: string, newRole: AdminRole, name: string) => {
     if (uid === currentAdmin?.uid) {
-      toast.error("You cannot demote or edit your own role.");
+      toast.error("You cannot edit your own role.");
       return;
     }
     
     try {
-      await updateDoc(doc(db, "admins", uid), { role: newRole });
-      toast.success(`Role for ${name} updated to ${newRole}`);
-      setUsers(users.map(u => u.uid === uid ? { ...u, role: newRole } : u));
+      await updateDoc(doc(db, "admins", uid), { role: "admin" });
+      toast.success(`Role for ${name} updated`);
+      setUsers(users.map(u => u.uid === uid ? { ...u, role: "admin" } : u));
     } catch (error) {
-      toast.error("Permission denied: You must be a Super Admin");
+      toast.error("Permission denied");
     }
   };
 
@@ -76,7 +76,7 @@ function AdminUsersPage() {
       toast.success(`${name} has been ${active ? "activated" : "deactivated"}`);
       setUsers(users.map(u => u.uid === uid ? { ...u, active } : u));
     } catch (error) {
-      toast.error("Permission denied: You must be a Super Admin");
+      toast.error("Permission denied");
     }
   };
 
@@ -86,38 +86,16 @@ function AdminUsersPage() {
     return date.toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
-  const getRoleBadge = (role: AdminRole) => {
-    switch (role) {
-      case "super_admin":
-        return <Badge className="bg-neutral-800 hover:bg-neutral-800 text-white font-mono text-[9px] uppercase tracking-wider">Super Admin</Badge>;
-      case "catalogue_manager":
-        return <Badge variant="outline" className="text-blue-600 border-blue-600 font-mono text-[9px] uppercase tracking-wider">Catalogue Manager</Badge>;
-      case "sales":
-        return <Badge variant="outline" className="text-amber-600 border-amber-600 font-mono text-[9px] uppercase tracking-wider">Sales Ops</Badge>;
-      default:
-        return null;
-    }
+  const getRoleBadge = (_role: AdminRole) => {
+    return <Badge className="bg-black text-white font-mono text-[9px] uppercase tracking-wider">Admin</Badge>;
   };
-
-  // Restrict screen display
-  if (!loading && currentAdmin && currentAdmin.role !== "super_admin") {
-    return (
-      <div className="mx-auto max-w-md text-center py-20 bg-white border border-[#E5E2DC] rounded p-8">
-        <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto mb-4" />
-        <h2 className="font-display text-lg font-bold">Access Restricted</h2>
-        <p className="text-xs text-muted-foreground mt-2 font-mono">
-          Only Super Administrators can manage administration user profiles. Your current role is: {currentAdmin.role}.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8 max-w-5xl">
       {/* Header */}
       <div>
         <h1 className="font-display text-3xl font-bold tracking-tight text-[#121212] md:text-4xl">Admin Users</h1>
-        <p className="text-sm text-[#776E63]">Manage console users, assign permission roles, and control site access.</p>
+        <p className="text-sm text-[#776E63]">Manage console users and control site access.</p>
       </div>
 
       {/* Users table */}
@@ -136,7 +114,7 @@ function AdminUsersPage() {
               <TableRow className="border-b border-[#E5E2DC] font-mono text-[9px] tracking-wider uppercase text-[#776E63]">
                 <TableHead>Administrator Name</TableHead>
                 <TableHead>Email Address</TableHead>
-                <TableHead>Role / Permissions</TableHead>
+                <TableHead>Role</TableHead>
                 <TableHead>Active State</TableHead>
                 <TableHead>Created On</TableHead>
               </TableRow>
@@ -162,23 +140,7 @@ function AdminUsersPage() {
                       </TableCell>
                       <TableCell className="font-mono text-xs text-neutral-600">{u.email}</TableCell>
                       <TableCell>
-                        {isSelf ? (
-                          getRoleBadge(u.role)
-                        ) : (
-                          <Select
-                            value={u.role}
-                            onValueChange={(val) => handleRoleChange(u.uid, val as AdminRole, u.name)}
-                          >
-                            <SelectTrigger className="h-8 rounded-sm text-xs border-[#E5E2DC] w-[160px] bg-white">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white border-[#E5E2DC] text-xs font-mono">
-                              <SelectItem value="super_admin">Super Admin</SelectItem>
-                              <SelectItem value="catalogue_manager">Catalogue Manager</SelectItem>
-                              <SelectItem value="sales">Sales Operations</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
+                        {getRoleBadge(u.role)}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

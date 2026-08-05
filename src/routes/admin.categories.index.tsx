@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { getCategories, deleteCategory, updateCategory } from "@/services/categoryService";
+import { getCategories, deleteCategory, updateCategory, subscribeToCategories } from "@/services/categoryService";
 import { Category } from "@/types/catalogue";
 import {
   FolderTree,
@@ -48,20 +48,14 @@ function AdminCategoriesPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const fetchCategories = async () => {
-    try {
-      setLoading(true);
-      const data = await getCategories(true);
+    setLoading(true);
+    const unsubscribe = subscribeToCategories((data) => {
       setCategories(data);
-    } catch (err) {
-      toast.error("Failed to load categories");
-    } finally {
       setLoading(false);
-    }
-  };
+    }, true); // include hidden categories for admin
+
+    return () => unsubscribe();
+  }, []);
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete category "${name}"?`)) return;
@@ -97,11 +91,14 @@ function AdminCategoriesPage() {
       {/* Top Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-neutral-200 pb-5">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h1 className="font-display text-2xl font-extrabold tracking-tight text-black sm:text-3xl">Categories</h1>
             <Badge className="bg-black text-white font-mono text-[10px] uppercase">
               {filteredCategories.length} Categories
             </Badge>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[0.65rem] font-semibold text-emerald-800">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live Data
+            </span>
           </div>
           <p className="text-xs text-neutral-500 font-medium mt-0.5">Manage store product lines, specifications templates, and series.</p>
         </div>

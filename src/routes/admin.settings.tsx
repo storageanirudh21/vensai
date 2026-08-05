@@ -16,10 +16,12 @@ export const Route = createFileRoute("/admin/settings")({
 });
 
 function AdminSettingsPage() {
+  const [mounted, setMounted] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAdminSeeded, setIsAdminSeeded] = useState(false);
   const [checking, setChecking] = useState(true);
   const [seeding, setSeeding] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   // General settings fields
   const [siteEmail, setSiteEmail] = useState("info@vensaiprime.com");
@@ -27,6 +29,26 @@ function AdminSettingsPage() {
   const [siteAddress, setSiteAddress] = useState("No. 14, Poonamallee High Road, Kilpauk, Chennai 600010");
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    // Load current site settings from Firestore
+    async function loadSiteSettings() {
+      try {
+        const settingsSnap = await getDoc(doc(db, "settings", "site"));
+        if (settingsSnap.exists()) {
+          const data = settingsSnap.data();
+          if (data.email) setSiteEmail(data.email);
+          if (data.phone) setSitePhone(data.phone);
+          if (data.address) setSiteAddress(data.address);
+        }
+      } catch (error) {
+        console.error("Error loading site settings from Firestore:", error);
+      }
+    }
+    loadSiteSettings();
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setCurrentUser(user);
@@ -50,10 +72,10 @@ function AdminSettingsPage() {
         currentUser.uid,
         currentUser.displayName || "Active Manager",
         currentUser.email || "manager.vensaiglobal@gmail.com",
-        "super_admin"
+        "admin"
       );
       setIsAdminSeeded(true);
-      toast.success("Successfully registered your account as Super Admin in the database!");
+      toast.success("Successfully registered your account as Admin in the database!");
     } catch (error) {
       toast.error("Failed to seed administrator profile. Check security rules.");
     } finally {
@@ -61,10 +83,32 @@ function AdminSettingsPage() {
     }
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Global site settings updated successfully");
+    setSavingSettings(true);
+    try {
+      await setDoc(doc(db, "settings", "site"), {
+        email: siteEmail,
+        phone: sitePhone,
+        address: siteAddress,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      toast.success("Global site settings updated successfully in Firestore!");
+    } catch (error) {
+      console.error("Error saving site settings:", error);
+      toast.error("Failed to save site settings.");
+    } finally {
+      setSavingSettings(false);
+    }
   };
+
+  if (!mounted) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-3xl">
@@ -101,7 +145,7 @@ function AdminSettingsPage() {
                 <div>
                   <span className="font-bold text-neutral-800">DB Status:</span>{" "}
                   {isAdminSeeded ? (
-                    <span className="text-emerald-600 font-bold">REGISTERED (SUPER_ADMIN)</span>
+                    <span className="text-emerald-600 font-bold">REGISTERED (ADMIN)</span>
                   ) : (
                     <span className="text-red-500 font-bold">UNREGISTERED (WRITE ACTIONS BLOCKED)</span>
                   )}
@@ -169,8 +213,10 @@ function AdminSettingsPage() {
 
             <Button
               type="submit"
-              className="rounded-sm bg-[#211C17] text-white hover:bg-[#4E3F30] font-mono text-xs uppercase tracking-widest py-5 px-6"
+              disabled={savingSettings}
+              className="rounded-sm bg-[#211C17] text-white font-mono text-xs uppercase tracking-widest py-5 px-6 flex items-center gap-2"
             >
+              {savingSettings && <Loader2 className="h-4 w-4 animate-spin text-white" />}
               Save Settings
             </Button>
           </form>

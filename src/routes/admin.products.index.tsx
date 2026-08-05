@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { getProducts, deleteProduct, updateProduct, duplicateProduct } from "@/services/productService";
+import { getProducts, deleteProduct, updateProduct, duplicateProduct, subscribeToProducts } from "@/services/productService";
 import { getCategories } from "@/services/categoryService";
 import { getSeriesByCategory } from "@/services/seriesService";
 import { Product, Category, Series } from "@/types/catalogue";
@@ -61,7 +61,13 @@ function AdminProductsPage() {
 
   useEffect(() => {
     loadCategories();
-    loadProducts();
+    setLoading(true);
+    const unsubscribe = subscribeToProducts((data) => {
+      setProducts(data);
+      setLoading(false);
+    }, null); // include all for admin
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {

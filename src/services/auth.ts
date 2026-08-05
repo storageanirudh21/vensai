@@ -53,7 +53,7 @@ export async function getAdminProfile(uid: string): Promise<AdminUser | null> {
 }
 
 // Simple utility to seed the first admin if needed. Admin can trigger this or we can call it.
-export async function seedInitialAdmin(uid: string, name: string, email: string, role: AdminRole = "super_admin"): Promise<void> {
+export async function seedInitialAdmin(uid: string, name: string, email: string, role: AdminRole = "admin"): Promise<void> {
   await setDoc(doc(db, "admins", uid), {
     name,
     email,

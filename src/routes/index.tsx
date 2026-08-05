@@ -16,6 +16,7 @@ import {
   Building2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
 import hero from "@/assets/hero-interior.jpg";
 import hero2 from "@/assets/hero-2.jpg";
 import hero3 from "@/assets/hero-3.jpg";
@@ -28,6 +29,10 @@ import importedMarble from "@/assets/imported-marble.png";
 import decorativeArtifacts from "@/assets/decorative-artifacts.png";
 import { collections, products } from "@/lib/products";
 import { useLead } from "@/lib/lead";
+import { subscribeToCategories } from "@/services/categoryService";
+import { subscribeToProducts } from "@/services/productService";
+import { Category, Product } from "@/types/catalogue";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -167,11 +172,19 @@ function Hero() {
   );
 }
 
-function ProductCard({ product, index }: { product: (typeof products)[number]; index: number }) {
+interface DisplayProduct {
+  slug: string;
+  name: string;
+  collection: string;
+  image: string;
+  badge?: string;
+}
+
+function ProductCard({ product, index }: { product: DisplayProduct; index: number }) {
   return (
     <Link
-      to="/products"
-      search={{ collection: product.collection as (typeof collections)[number] }}
+      to="/products/$slug"
+      params={{ slug: product.slug }}
       className="group block"
     >
       <div className="relative aspect-[4/5] overflow-hidden bg-[#ddd1c0]">
@@ -180,18 +193,24 @@ function ProductCard({ product, index }: { product: (typeof products)[number]; i
           alt={product.name}
           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.035]"
         />
-        {index === 0 && (
+        {product.badge ? (
+          <span className="absolute left-3 top-3 border border-white/60 bg-[#261b14]/70 px-2 py-1 text-[0.55rem] uppercase tracking-[0.15em] text-white">
+            {product.badge}
+          </span>
+        ) : index === 0 ? (
           <span className="absolute left-3 top-3 border border-white/60 bg-[#261b14]/70 px-2 py-1 text-[0.55rem] uppercase tracking-[0.15em] text-white">
             Selected
           </span>
-        )}
+        ) : null}
       </div>
       <div className="border-b border-[#cdc4b7] py-3">
         <p className="text-[0.56rem] font-medium uppercase tracking-[0.15em] text-[#776f63]">
           {product.collection}
         </p>
         <div className="mt-1 flex items-center justify-between gap-4">
-          <h3 className="text-sm font-medium tracking-[-0.025em] text-[#27221c]">{product.name}</h3>
+          <h3 className="text-sm font-medium tracking-[-0.025em] text-[#27221c] group-hover:text-[#5b4937] transition-colors">
+            {product.name}
+          </h3>
           <ArrowUpRight size={14} className="text-[#776f63] transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </div>
       </div>
@@ -199,56 +218,198 @@ function ProductCard({ product, index }: { product: (typeof products)[number]; i
   );
 }
 
+interface DisplayCategory {
+  id: string;
+  name: string;
+  slug: string;
+  image: string;
+  productCount?: number;
+}
+
+function CategoryCard({ category, index }: { category: DisplayCategory; index: number }) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  return (
+    <Link
+      to="/products"
+      search={{ collection: category.name }}
+      className="group block"
+    >
+      <div className="relative aspect-[4/5] overflow-hidden bg-[#ddd1c0]">
+        {!imageLoaded && (
+          <Skeleton className="absolute inset-0 h-full w-full rounded-none bg-[#eae3d7] animate-pulse" />
+        )}
+        <img
+          src={category.image}
+          alt={category.name}
+          loading={index < 5 ? "eager" : "lazy"}
+          decoding="async"
+          onLoad={() => setImageLoaded(true)}
+          className={cn(
+            "h-full w-full object-cover transition-all duration-300 group-hover:scale-[1.035]",
+            imageLoaded ? "opacity-100" : "opacity-0"
+          )}
+        />
+        {index === 0 && imageLoaded && (
+          <span className="absolute left-3 top-3 z-10 border border-white/60 bg-[#261b14]/70 px-2 py-1 text-[0.55rem] uppercase tracking-[0.15em] text-white">
+            Selected
+          </span>
+        )}
+      </div>
+      <div className="border-b border-[#cdc4b7] py-3">
+        {!imageLoaded ? (
+          <div className="space-y-2 py-1">
+            <Skeleton className="h-2.5 w-1/3 bg-[#eae3d7] animate-pulse" />
+            <div className="flex items-center justify-between gap-4">
+              <Skeleton className="h-4 w-3/4 bg-[#eae3d7] animate-pulse" />
+              <Skeleton className="h-3.5 w-3.5 rounded-full bg-[#eae3d7] animate-pulse shrink-0" />
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="text-[0.56rem] font-medium uppercase tracking-[0.15em] text-[#776f63]">
+              {category.productCount !== undefined && category.productCount > 0
+                ? `${category.productCount} ${category.productCount === 1 ? "Product" : "Products"}`
+                : "Category"}
+            </p>
+            <div className="mt-1 flex items-center justify-between gap-4">
+              <h3 className="text-sm font-medium tracking-[-0.025em] text-[#27221c] group-hover:text-[#5b4937] transition-colors truncate">
+                {category.name}
+              </h3>
+              <ArrowUpRight
+                size={14}
+                className="text-[#776f63] transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 shrink-0"
+              />
+            </div>
+          </>
+        )}
+      </div>
+    </Link>
+  );
+}
+
 function Products() {
+  const [dbCategories, setDbCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Subscribe to Firebase categories in real-time
+    const unsubscribe = subscribeToCategories((cats) => {
+      setDbCategories(cats);
+    }, false);
+
+    return () => unsubscribe();
+  }, []);
+
+  const fallbackImages = [
+    hero2,
+    hero3,
+    luxuryWallCladding,
+    importedMarble,
+    decorativeArtifacts,
+    hero,
+    clientVilla,
+    clientHotel,
+    clientOffice,
+    clientPenthouse,
+  ];
+
+  const hasDbCategories = dbCategories.length > 0;
+
+  const categoryList: DisplayCategory[] = hasDbCategories
+    ? dbCategories.map((c, idx) => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        productCount: c.productCount,
+        image: c.coverImage?.url || c.coverImage?.thumbnailUrl || fallbackImages[idx % fallbackImages.length],
+      }))
+    : collections
+        .filter((c) => c !== "All")
+        .map((c, idx) => ({
+          id: c,
+          name: c,
+          slug: c.toLowerCase(),
+          image: fallbackImages[idx % fallbackImages.length],
+        }));
+
   return (
     <section className="bg-[#f8f6f1] px-6 py-20 md:px-14 md:py-28">
-      <div className="mx-auto max-w-[1260px]">
-        <div className="grid gap-10 border-b border-[#d5cdc1] pb-12 md:grid-cols-[1fr_1.35fr]">
-          <SectionLabel>Our collections</SectionLabel>
+      <div className="mx-auto max-w-[1440px]">
+        <div className="flex flex-col gap-6 border-b border-[#d5cdc1] pb-8 md:flex-row md:items-end md:justify-between">
           <div>
-            <h2 className="max-w-xl text-3xl font-normal leading-[1.05] tracking-[-0.055em] text-[#29241e] md:text-5xl">
+            <SectionLabel>Our collections</SectionLabel>
+            <h2 className="mt-5 text-3xl font-normal leading-[1.05] tracking-[-0.055em] text-[#29241e] md:text-5xl">
               Surfaces designed to become part of the room.
             </h2>
-            <p className="mt-5 max-w-md text-sm leading-relaxed text-[#6c6458]">
-              A practical collection of high-performance finishes selected for their depth,
-              durability and calm material character.
+            <p className="mt-4 max-w-md text-sm leading-relaxed text-[#6c6458]">
+              A practical collection of high-performance finishes selected for their depth, durability and calm material character.
             </p>
           </div>
-        </div>
-        <div className="grid gap-5 pt-7 sm:grid-cols-3">
-          {featured.map((product, index) => (
-            <ProductCard key={product.slug} product={product} index={index} />
-          ))}
-        </div>
-        <div className="mt-9 flex items-center justify-between border-b border-[#d5cdc1] pb-5">
           <Link
             to="/products"
-            className="rounded-full bg-[#211c17] px-6 py-3 text-[0.65rem] font-medium uppercase tracking-[0.12em] text-white hover:bg-[#5b4937]"
+            className="rounded-full bg-[#211c17] px-6 py-3 text-[0.65rem] font-medium uppercase tracking-[0.12em] text-white hover:bg-[#5b4937] transition-colors w-fit shrink-0"
           >
-            View all collections
+            View all categories ({categoryList.length})
           </Link>
-          <div className="hidden text-xs text-[#756d62] md:flex items-center gap-2">
-            {(["Panels", "Surfaces", "Marble", "Artifacts"] as const).map((c, i) => (
-              <span key={c} className="flex items-center gap-2">
-                {i > 0 && <span>·</span>}
-                <Link
-                  to="/products"
-                  search={{ collection: c }}
-                  className="hover:text-[#211c17] hover:underline transition-colors"
-                >
-                  {c}
-                </Link>
-              </span>
+        </div>
+
+        {loading ? (
+          <div className="-mr-6 pt-8 flex gap-4 overflow-x-auto pb-3 pr-6 sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 sm:gap-5 sm:overflow-visible sm:pr-0 scrollbar-none">
+            {[...Array(10)].map((_, i) => (
+              <div key={i} className="w-[72vw] shrink-0 sm:w-auto space-y-3">
+                <Skeleton className="aspect-[4/5] w-full rounded bg-[#eae3d7]" />
+                <Skeleton className="h-3 w-1/3 bg-[#eae3d7]" />
+                <Skeleton className="h-4 w-2/3 bg-[#eae3d7]" />
+              </div>
             ))}
           </div>
-        </div>
+        ) : (
+          <div className="-mr-6 pt-8 flex gap-4 overflow-x-auto pb-3 pr-6 sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 sm:gap-5 sm:overflow-visible sm:pr-0 scrollbar-none">
+            {categoryList.map((category, index) => (
+              <div key={category.id || category.slug} className="w-[72vw] shrink-0 sm:w-auto">
+                <CategoryCard category={category} index={index} />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
 }
 
 function Bestsellers() {
-  const bestsellers = products.slice(3, 7);
+  const [dbBestsellers, setDbBestsellers] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToProducts((prods) => {
+      // Filter for products marked as bestSeller === true
+      const bestSellers = prods.filter((p) => p.bestSeller === true);
+      setDbBestsellers(bestSellers);
+    }, null);
+
+    return () => unsubscribe();
+  }, []);
+
+  const formattedDbBestsellers = dbBestsellers.map((p) => ({
+    slug: p.slug,
+    name: p.name,
+    collection: p.categoryName,
+    image: p.primaryImage?.thumbnailUrl || p.primaryImage?.url || (p.images && p.images[0]?.url) || "",
+    badge: "Bestseller",
+  }));
+
+  const localBestsellers = products.slice(3, 7).map((p) => ({
+    slug: p.slug,
+    name: p.name,
+    collection: p.collection,
+    image: p.image,
+    badge: p.badge,
+  }));
+
+  const displayBestsellers = formattedDbBestsellers.length > 0 ? formattedDbBestsellers : localBestsellers;
+
   return (
     <section className="bg-[#eee8de] px-6 py-20 md:px-14 md:py-28">
       <div className="mx-auto max-w-[1260px]">
@@ -266,13 +427,26 @@ function Bestsellers() {
             Explore the full collection <ArrowRight size={14} />
           </Link>
         </div>
-        <div className="-mr-6 mt-7 flex gap-4 overflow-x-auto pb-3 pr-6 sm:grid sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:pr-0 lg:grid-cols-4">
-          {bestsellers.map((product, index) => (
-            <div key={product.slug} className="w-[72vw] shrink-0 sm:w-auto">
-              <ProductCard product={product} index={index + 1} />
-            </div>
-          ))}
-        </div>
+
+        {loading ? (
+          <div className="mt-7 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="space-y-3">
+                <Skeleton className="aspect-[4/5] w-full rounded bg-[#dfd6c8]" />
+                <Skeleton className="h-3 w-1/3 bg-[#dfd6c8]" />
+                <Skeleton className="h-4 w-2/3 bg-[#dfd6c8]" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="-mr-6 mt-7 flex gap-4 overflow-x-auto pb-3 pr-6 sm:grid sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:pr-0 lg:grid-cols-4">
+            {displayBestsellers.map((product, index) => (
+              <div key={product.slug} className="w-[72vw] shrink-0 sm:w-auto">
+                <ProductCard product={product} index={index + 1} />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

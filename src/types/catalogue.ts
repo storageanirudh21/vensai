@@ -1,6 +1,6 @@
 import { Timestamp } from "firebase/firestore";
 
-export type AdminRole = "super_admin" | "catalogue_manager" | "sales";
+export type AdminRole = "admin" | "super_admin" | "catalogue_manager" | "sales";
 
 export interface AdminUser {
   uid: string;
@@ -119,8 +119,10 @@ export interface Product {
     id: string;
     title: string;
     fileUrl: string;
+    fileSize?: string | number;
   } | null;
   featured: boolean;
+  bestSeller?: boolean;
   status: "draft" | "published" | "hidden";
   order: number;
   seo: {
@@ -136,16 +138,17 @@ export interface Product {
 export interface Brochure {
   id: string;
   title: string;
-  categoryId: string | null;
+  categoryId?: string | null;
   categoryName?: string | null;
-  fileName: string;
+  fileName?: string;
   fileUrl: string;
   pdfUrl?: string;
-  storagePath: string;
-  fileSize: number;
-  status: "active" | "hidden";
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  storagePath?: string;
+  fileSize?: number | string;
+  description?: string;
+  status?: "active" | "hidden";
+  createdAt?: any;
+  updatedAt?: any;
 }
 
 export type EnquiryStatus = "new" | "contacted" | "qualified" | "closed";

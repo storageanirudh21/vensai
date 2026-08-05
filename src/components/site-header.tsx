@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 const nav = [
   { label: "Home", to: "/" },
   { label: "Products", to: "/products" },
+  { label: "Catalogues", to: "/catalogues" },
   { label: "About", to: "/about" },
   { label: "Contact", to: "/contact" },
 ] as const;
@@ -43,25 +44,11 @@ export function SiteHeader() {
         <div className="flex items-center gap-6">
           <button
             onClick={() => setMenu((v) => !v)}
-            className={cn("flex items-center gap-2 text-[0.68rem] font-semibold tracking-[0.18em] uppercase hover:opacity-75 transition-opacity", overHero ? "text-white" : "text-[#292721]")}
+            className={cn("flex items-center gap-2 text-[0.68rem] font-semibold tracking-[0.18em] uppercase hover:opacity-75 transition-opacity cursor-pointer", overHero ? "text-white" : "text-[#292721]")}
           >
             {menu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             <span>Menu</span>
           </button>
-
-          <nav className={cn("hidden items-center gap-6 border-l pl-6 lg:flex", overHero ? "border-white/25" : "border-[#cfc6b6]")}>
-            {nav.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn("text-[0.65rem] font-semibold tracking-[0.18em] uppercase transition-colors", overHero ? "text-white/70 hover:text-white" : "text-[#625c52] hover:text-[#121212]")}
-                activeProps={{ className: overHero ? "text-white font-bold" : "text-[#121212] font-bold" }}
-                activeOptions={{ exact: item.to === "/" }}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
         </div>
 
         {/* Center: Brand Logo (Dead Centered) */}

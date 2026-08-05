@@ -88,13 +88,13 @@ const productSchema = z.object({
   description: z.string().default(""),
   primaryImage: z.object({
     url: z.string(),
-    thumbnailUrl: z.string(),
+    thumbnailUrl: z.string().optional(),
     storagePath: z.string(),
     alt: z.string(),
   }).nullable().default(null),
   images: z.array(z.object({
     url: z.string(),
-    thumbnailUrl: z.string(),
+    thumbnailUrl: z.string().optional(),
     storagePath: z.string(),
     alt: z.string(),
     finishId: z.string().optional(),
@@ -123,6 +123,7 @@ const productSchema = z.object({
     fileUrl: z.string(),
   }).nullable().default(null),
   featured: z.boolean().default(false),
+  bestSeller: z.boolean().default(false),
   status: z.enum(["draft", "published", "hidden"]).default("draft"),
   order: z.number().default(0),
   seo: z.object({
@@ -346,6 +347,7 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
             filterData: prod.filterData || {},
             brochure: prod.brochure,
             featured: prod.featured,
+            bestSeller: prod.bestSeller ?? false,
             status: duplicateId ? "draft" : prod.status,
             order: prod.order,
             seo: prod.seo || { title: "", description: "", keywords: [] }
@@ -699,7 +701,7 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
             type="submit"
             disabled={submitting}
             size="sm"
-            className="rounded-sm bg-[#211C17] hover:bg-[#4E3F30] text-white"
+            className="rounded-sm bg-[#211C17] text-white"
           >
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isEdit ? "Save Product" : "Publish Product"}
@@ -1274,6 +1276,20 @@ export function ProductForm({ id: editId, duplicateId }: ProductFormProps) {
                   name="featured"
                   render={({ field }) => (
                     <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  )}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded border border-neutral-100 p-3 bg-neutral-50/50">
+                <div>
+                  <Label className="text-xs font-semibold text-[#121212]">Best seller</Label>
+                  <p className="text-[9px] font-mono text-muted-foreground mt-0.5">Showcase in Bestsellers section on homepage</p>
+                </div>
+                <Controller
+                  control={control}
+                  name="bestSeller"
+                  render={({ field }) => (
+                    <Switch checked={!!field.value} onCheckedChange={field.onChange} />
                   )}
                 />
               </div>

@@ -13,11 +13,38 @@ import {
   serverTimestamp,
   writeBatch,
   increment,
-  runTransaction
+  runTransaction,
+  onSnapshot
 } from "firebase/firestore";
 import { Series } from "@/types/catalogue";
 
 const COLLECTION_NAME = "series";
+
+export function subscribeToSeries(
+  onUpdate: (seriesList: Series[]) => void,
+  includeHidden = false
+): () => void {
+  try {
+    const q = query(collection(db, COLLECTION_NAME));
+    return onSnapshot(
+      q,
+      (snap) => {
+        let list = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Series);
+        if (!includeHidden) {
+          list = list.filter((s) => !s.status || s.status === "active");
+        }
+        list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        onUpdate(list);
+      },
+      (error) => {
+        console.error("Error subscribing to series:", error);
+      }
+    );
+  } catch (error) {
+    console.error("Error setting up series subscription:", error);
+    return () => {};
+  }
+}
 
 export async function getSeriesByCategory(categoryId: string, includeHidden = true): Promise<Series[]> {
   if (!categoryId) return [];
@@ -184,7 +211,7 @@ export async function updateSeries(id: string, data: Partial<Series>): Promise<v
   }
 }
 
-export async function deleteSeries(id: string): Promise<void> {
+export async function deleteSeries(id: string, force = false): Promise<void> {
   try {
     const docRef = doc(db, COLLECTION_NAME, id);
     const docSnap = await getDoc(docRef);
@@ -196,12 +223,18 @@ export async function deleteSeries(id: string): Promise<void> {
     const productsQuery = query(collection(db, "products"), where("seriesId", "==", id));
     const productsSnap = await getDocs(productsQuery);
 
-    if (!productsSnap.empty) {
-      throw new Error(`This series contains ${productsSnap.size} products and cannot be safely deleted.`);
+    if (!productsSnap.empty && !force) {
+      throw new Error(`This series contains ${productsSnap.size} product(s) and cannot be safely deleted.`);
     }
 
     // Run transaction to delete series and decrement category seriesCount
     await runTransaction(db, async (transaction) => {
+      if (!productsSnap.empty && force) {
+        productsSnap.docs.forEach((pDoc) => {
+          transaction.delete(pDoc.ref);
+        });
+      }
+
       const categoryDocRef = doc(db, "categories", seriesData.categoryId);
       
       transaction.delete(docRef);

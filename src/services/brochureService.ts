@@ -17,15 +17,15 @@ const COLLECTION_NAME = "brochures";
 
 export async function getBrochures(includeHidden = true): Promise<Brochure[]> {
   try {
-    let q = query(collection(db, COLLECTION_NAME), orderBy("createdAt", "desc"));
+    const snap = await getDocs(collection(db, COLLECTION_NAME));
+    let list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Brochure);
     if (!includeHidden) {
-      q = query(collection(db, COLLECTION_NAME), where("status", "==", "active"), orderBy("createdAt", "desc"));
+      list = list.filter(b => b.status === "active" || !b.status);
     }
-    const snap = await getDocs(q);
-    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Brochure);
+    return list;
   } catch (error) {
-    console.error("Error getting brochures:", error);
-    throw error;
+    console.error("Error getting brochures from Firebase:", error);
+    return [];
   }
 }
 

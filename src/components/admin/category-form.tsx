@@ -52,6 +52,7 @@ const categorySchema = z.object({
     url: z.string(),
     storagePath: z.string(),
     alt: z.string(),
+    thumbnailUrl: z.string().optional(),
   }).nullable().default(null),
   featured: z.boolean().default(false),
   status: z.enum(["active", "hidden"]).default("active"),
@@ -386,9 +387,28 @@ export function CategoryForm({ id: editId, duplicateId }: CategoryFormProps) {
     setBulkSeriesOpen(false);
   };
 
-  const handleDeleteSeriesItem = (seriesId: string, seriesName: string) => {
-    setSeriesList(prev => prev.filter(s => s.id !== seriesId));
-    toast.success(`Removed series "${seriesName}"`);
+  const handleDeleteSeriesItem = async (seriesId: string, seriesName: string) => {
+    try {
+      await deleteSeries(seriesId);
+      setSeriesList(prev => prev.filter(s => s.id !== seriesId));
+      toast.success(`Deleted series "${seriesName}"`);
+    } catch (error: any) {
+      const msg = error?.message || "";
+      if (msg.includes("contains") && msg.includes("product")) {
+        if (window.confirm(`${msg}\n\nDo you want to delete series "${seriesName}" along with all its associated products?`)) {
+          try {
+            await deleteSeries(seriesId, true);
+            setSeriesList(prev => prev.filter(s => s.id !== seriesId));
+            toast.success(`Deleted series "${seriesName}" and its associated products.`);
+          } catch (forceErr: any) {
+            toast.error(forceErr?.message || "Failed to delete series");
+          }
+        }
+        return;
+      }
+      setSeriesList(prev => prev.filter(s => s.id !== seriesId));
+      toast.success(`Removed series "${seriesName}"`);
+    }
   };
 
   // Submit Categories & All Series Together
@@ -397,7 +417,10 @@ export function CategoryForm({ id: editId, duplicateId }: CategoryFormProps) {
     try {
       // 1. Save / Update Category Document
       if (isEdit) {
-        await updateCategory(categoryId, values);
+        await updateCategory(categoryId, {
+          ...values,
+          seriesCount: seriesList.length,
+        });
       } else {
         await setDoc(doc(db, "categories", categoryId), {
           ...values,
@@ -456,7 +479,7 @@ export function CategoryForm({ id: editId, duplicateId }: CategoryFormProps) {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button asChild size="sm" variant="outline" className="rounded-lg border-neutral-200 text-black hover:bg-neutral-100 text-xs font-semibold">
+          <Button asChild size="sm" variant="outline" className="rounded-lg border-neutral-200 text-black text-xs font-semibold">
             <Link to="/admin/categories">Cancel</Link>
           </Button>
           <Button
@@ -464,7 +487,7 @@ export function CategoryForm({ id: editId, duplicateId }: CategoryFormProps) {
             onClick={handleSubmit(onSubmit as any)}
             disabled={submitting}
             size="sm"
-            className="rounded-lg bg-black hover:bg-neutral-800 text-white font-semibold text-xs shadow-sm px-4"
+            className="rounded-lg bg-black text-white font-semibold text-xs shadow-sm px-4"
           >
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />}
             Save Category & Series
@@ -562,9 +585,17 @@ export function CategoryForm({ id: editId, duplicateId }: CategoryFormProps) {
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-wider text-black font-mono">Category Cover Image</Label>
                 {coverImageVal ? (
-                  <div className="relative aspect-video w-full max-w-sm overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50 group">
-                    <img src={coverImageVal.url} alt="Cover preview" className="h-full w-full object-cover" />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex flex-col gap-3">
+                    <div className="relative aspect-video w-full max-w-sm overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50">
+                      <img src={coverImageVal.url} alt="Cover preview" className="h-full w-full object-cover" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="cursor-pointer">
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-black text-white px-3 py-1.5 text-xs font-semibold shadow-xs">
+                          <Upload className="h-3.5 w-3.5" /> Change Image
+                        </span>
+                        <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                      </label>
                       <Button
                         type="button"
                         variant="destructive"
@@ -1058,7 +1089,7 @@ export function CategoryForm({ id: editId, duplicateId }: CategoryFormProps) {
             variant="outline"
             onClick={() => setCurrentStep(s => Math.max(s - 1, 1))}
             disabled={currentStep === 1}
-            className="h-10 rounded-lg border-neutral-200 text-black text-xs font-semibold hover:bg-neutral-100"
+            className="h-10 rounded-lg border-neutral-200 text-black text-xs font-semibold"
           >
             <ArrowLeft className="mr-1.5 h-4 w-4 text-black" /> Previous Step
           </Button>
@@ -1067,7 +1098,7 @@ export function CategoryForm({ id: editId, duplicateId }: CategoryFormProps) {
             <Button
               type="button"
               onClick={() => setCurrentStep(s => Math.min(s + 1, 5))}
-              className="h-10 rounded-lg bg-black hover:bg-neutral-800 text-white font-semibold text-xs shadow-sm px-6"
+              className="h-10 rounded-lg bg-black text-white font-semibold text-xs shadow-sm px-6"
             >
               Next Step <ArrowRight className="ml-1.5 h-4 w-4 text-white" />
             </Button>
@@ -1075,7 +1106,7 @@ export function CategoryForm({ id: editId, duplicateId }: CategoryFormProps) {
             <Button
               type="submit"
               disabled={submitting}
-              className="h-10 rounded-lg bg-black hover:bg-neutral-800 text-white font-semibold text-xs shadow-sm px-6"
+              className="h-10 rounded-lg bg-black text-white font-semibold text-xs shadow-sm px-6"
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />}
               Save Category & All Series

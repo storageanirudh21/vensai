@@ -11,20 +11,48 @@ import {
   where,
   orderBy,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  onSnapshot,
 } from "firebase/firestore";
 import { Category, FilterField, SpecField } from "@/types/catalogue";
 
 const COLLECTION_NAME = "categories";
 
+export function subscribeToCategories(
+  onUpdate: (categories: Category[]) => void,
+  includeHidden = false
+): () => void {
+  try {
+    const q = query(collection(db, COLLECTION_NAME));
+    return onSnapshot(
+      q,
+      (snap) => {
+        let categories = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Category);
+        if (!includeHidden) {
+          categories = categories.filter((c) => !c.status || c.status === "active");
+        }
+        categories.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        onUpdate(categories);
+      },
+      (error) => {
+        console.error("Error subscribing to categories:", error);
+      }
+    );
+  } catch (error) {
+    console.error("Error setting up categories subscription:", error);
+    return () => {};
+  }
+}
+
 export async function getCategories(includeHidden = true): Promise<Category[]> {
   try {
-    let q = query(collection(db, COLLECTION_NAME), orderBy("order", "asc"));
+    const snap = await getDocs(collection(db, COLLECTION_NAME));
+    let categories = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Category);
     if (!includeHidden) {
-      q = query(collection(db, COLLECTION_NAME), where("status", "==", "active"), orderBy("order", "asc"));
+      categories = categories.filter(c => !c.status || c.status === "active");
     }
-    const snap = await getDocs(q);
-    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Category);
+    categories.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    return categories;
   } catch (error) {
     console.error("Error getting categories:", error);
     throw error;
@@ -86,8 +114,8 @@ export async function updateCategory(id: string, data: Partial<Category>): Promi
     };
     // Don't overwrite counts or timestamps via generic update
     delete (updateData as any).createdAt;
-    delete (updateData as any).seriesCount;
-    delete (updateData as any).productCount;
+    if (data.seriesCount === undefined) delete (updateData as any).seriesCount;
+    if (data.productCount === undefined) delete (updateData as any).productCount;
     
     await updateDoc(docRef, updateData);
   } catch (error) {

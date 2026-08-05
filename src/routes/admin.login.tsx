@@ -71,7 +71,7 @@ function AdminLoginPage() {
         // Auto-seed primary email
         if (data.email.toLowerCase() === "manager.vensaiglobal@gmail.com") {
           try {
-            await seedInitialAdmin(creds.user.uid, "Primary Manager", data.email, "super_admin");
+            await seedInitialAdmin(creds.user.uid, "Primary Manager", data.email, "admin");
             adminDoc = await getDoc(doc(db, "admins", creds.user.uid));
           } catch (seedError) {
             console.error("Auto-seeding primary manager failed:", seedError);

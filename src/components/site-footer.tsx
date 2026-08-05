@@ -115,6 +115,11 @@ export function SiteFooter() {
                   </Link>
                 </li>
                 <li>
+                  <Link to="/catalogues" className="hover:text-[#96754b] transition-colors">
+                    Catalogues &amp; Specs
+                  </Link>
+                </li>
+                <li>
                   <Link to="/about" className="hover:text-[#96754b] transition-colors">
                     About Us
                   </Link>

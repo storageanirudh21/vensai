@@ -16,11 +16,40 @@ import {
   increment,
   runTransaction,
   writeBatch,
-  DocumentSnapshot
+  DocumentSnapshot,
+  onSnapshot,
 } from "firebase/firestore";
 import { Product } from "@/types/catalogue";
 
 const COLLECTION_NAME = "products";
+
+export function subscribeToProducts(
+  onUpdate: (products: Product[]) => void,
+  status: "published" | "draft" | "hidden" | null = null
+): () => void {
+  try {
+    const q = query(collection(db, COLLECTION_NAME));
+    return onSnapshot(
+      q,
+      (snap) => {
+        let products = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Product);
+        if (status) {
+          products = products.filter((p) => p.status === status);
+        } else {
+          // Include all products except explicitly hidden ones
+          products = products.filter((p) => p.status !== "hidden");
+        }
+        onUpdate(products);
+      },
+      (error) => {
+        console.error("Error subscribing to products:", error);
+      }
+    );
+  } catch (error) {
+    console.error("Error setting up products subscription:", error);
+    return () => {};
+  }
+}
 
 interface GetProductsOptions {
   categoryId?: string;
